@@ -12,7 +12,11 @@ export default function RootPage() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        router.replace('/dashboard');
+        if (user.role === 'ADMIN') {
+          router.replace('/dashboard');
+        } else {
+          router.replace('/snacks');
+        }
       } else {
         router.replace('/login');
       }
@@ -23,7 +27,7 @@ export default function RootPage() {
     <div className="min-h-screen flex items-center justify-center bg-pantry-bg">
       <div className="flex flex-col items-center gap-3">
         <Loader2 className="w-8 h-8 text-coral animate-spin" />
-        <p className="text-xs font-semibold text-navy-900 uppercase tracking-widest">
+        <p className="text-xs font-bold text-pantry-text uppercase tracking-widest">
           Loading Snack Overflow...
         </p>
       </div>

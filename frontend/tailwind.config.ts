@@ -1,10 +1,12 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
+  darkMode: 'class',
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/context/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -16,10 +18,12 @@ const config: Config = {
           700: '#1D4ED8',
         },
         pantry: {
-          bg: '#F8F7F3',
-          surface: '#FFFFFF',
-          border: '#E6E4DF',
-          subtle: '#F1EFEA',
+          bg: 'var(--pantry-bg)',
+          surface: 'var(--pantry-surface)',
+          border: 'var(--pantry-border)',
+          subtle: 'var(--pantry-subtle)',
+          text: 'var(--pantry-text)',
+          muted: 'var(--pantry-muted)',
         },
         coral: {
           DEFAULT: '#F97366',
@@ -44,7 +48,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
       },
     },
   },

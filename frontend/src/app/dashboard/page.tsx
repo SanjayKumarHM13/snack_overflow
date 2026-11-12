@@ -19,11 +19,11 @@ import {
   Layers,
   ArrowRight,
   RefreshCw,
-  Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   const {
     data: summary,
@@ -38,21 +38,22 @@ export default function DashboardPage() {
   });
 
   return (
-    <AppShell>
+    <AppShell requireAdmin>
       <div className="space-y-6 sm:space-y-8">
         {/* Top Greeting & Action Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-black text-navy-900 tracking-tight">
-                Welcome back, {user?.name.split(' ')[0]} 👋
+              <h1 className="text-2xl sm:text-3xl font-black text-pantry-text tracking-tight">
+                Pantry Dashboard
               </h1>
-              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-coral/10 text-coral border border-coral/20">
-                Pantry Live
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-navy-900 text-white dark:bg-navy-700">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Admin Overview
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Real-time pantry inventory and consumption tracking across the office.
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Welcome, {user?.name.split(' ')[0]}. Real-time inventory metrics, depletion warnings, and pantry audit feed.
             </p>
           </div>
 
@@ -66,9 +67,9 @@ export default function DashboardPage() {
             >
               Refresh
             </Button>
-            <Link href="/snacks">
+            <Link href="/admin">
               <Button variant="coral" size="sm" icon={<ArrowRight className="w-3.5 h-3.5" />}>
-                Browse Snacks
+                Manage Inventory
               </Button>
             </Link>
           </div>
@@ -79,21 +80,21 @@ export default function DashboardPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-28 rounded-2xl w-full" />
+                <Skeleton key={i} className="h-28 rounded-3xl w-full" />
               ))}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <Skeleton className="h-72 rounded-2xl w-full lg:col-span-1" />
-              <Skeleton className="h-72 rounded-2xl w-full lg:col-span-2" />
+              <Skeleton className="h-72 rounded-3xl w-full lg:col-span-1" />
+              <Skeleton className="h-72 rounded-3xl w-full lg:col-span-2" />
             </div>
           </div>
         )}
 
         {/* Error Fallback */}
         {error && !isLoading && (
-          <div className="p-6 bg-rose-50 border border-rose-200 rounded-2xl text-center">
-            <p className="text-sm font-bold text-rose-900">Failed to load pantry dashboard</p>
-            <p className="text-xs text-rose-700 mt-1">
+          <div className="p-6 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-3xl text-center">
+            <p className="text-sm font-bold text-rose-900 dark:text-rose-200">Failed to load pantry dashboard</p>
+            <p className="text-xs text-rose-700 dark:text-rose-400 mt-1">
               Please check your connection or sign in again.
             </p>
             <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3">
@@ -108,9 +109,9 @@ export default function DashboardPage() {
             {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
-                title="Total Snack Types"
+                title="Total Varieties"
                 value={summary.totalSnackTypes}
-                subtitle="Active varieties in catalog"
+                subtitle="Active snack options"
                 icon={<Layers className="w-5 h-5" />}
                 variant="default"
               />
@@ -122,14 +123,14 @@ export default function DashboardPage() {
                 variant="default"
               />
               <StatCard
-                title="Fully Stocked"
+                title="Well-Stocked"
                 value={summary.stockedCount}
-                subtitle="Above low stock threshold"
+                subtitle="Above reorder threshold"
                 icon={<PackageCheck className="w-5 h-5" />}
                 variant="success"
               />
               <StatCard
-                title="Needs Attention"
+                title="Needs Restock"
                 value={summary.runningLowCount + summary.goneCount}
                 subtitle={`${summary.runningLowCount} low, ${summary.goneCount} depleted`}
                 icon={<AlertTriangle className="w-5 h-5" />}
@@ -139,34 +140,43 @@ export default function DashboardPage() {
 
             {/* Main Interactive Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column: Snack of the Week & Inventory Alerts */}
+              {/* Left Column: Snack of the Week & Admin Shortcuts */}
               <div className="space-y-6 lg:col-span-1 flex flex-col justify-between">
                 <SnackOfWeekCard snack={summary.snackOfTheWeek} />
 
-                {isAdmin && (
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-navy-900 to-navy-800 text-white shadow-sm flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-coral uppercase tracking-wider">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Admin Controls
-                      </div>
-                      <h4 className="text-base font-bold text-white mt-1">Pantry Management</h4>
-                      <p className="text-xs text-gray-300 mt-1">
-                        Restock depleted snacks, adjust reorder thresholds, or introduce new snacks.
-                      </p>
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-navy-950 to-navy-900 dark:from-slate-900 dark:to-slate-950 text-white shadow-sm flex flex-col justify-between border border-navy-800">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-coral uppercase tracking-wider">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Administrative Hub
                     </div>
-                    <Link href="/admin" className="mt-4">
+                    <h4 className="text-lg font-black text-white mt-1">Pantry Inventory Control</h4>
+                    <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                      Restock depleted snacks, adjust reorder thresholds, or introduce new snacks to the office pantry.
+                    </p>
+                  </div>
+                  <div className="mt-5 flex flex-col gap-2">
+                    <Link href="/admin">
                       <Button
                         size="sm"
                         variant="coral"
-                        className="w-full font-semibold"
+                        className="w-full font-bold"
                         icon={<ArrowRight className="w-3.5 h-3.5" />}
                       >
-                        Manage Inventory
+                        Inventory Manager
+                      </Button>
+                    </Link>
+                    <Link href="/activities">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full font-bold border-white/20 text-white hover:bg-white/10"
+                      >
+                        Full Activity Audit Log
                       </Button>
                     </Link>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Middle / Right Column: Alerts & Recent Activity */}

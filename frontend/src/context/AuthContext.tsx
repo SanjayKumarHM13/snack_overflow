@@ -39,13 +39,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, passwordPlain: string) => {
     const loggedInUser = await authService.login(email, passwordPlain);
     setUser(loggedInUser);
-    router.push('/dashboard');
+    if (loggedInUser.role === 'ADMIN') {
+      router.push('/dashboard');
+    } else {
+      router.push('/snacks');
+    }
   };
 
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
-    router.push('/login');
+    try {
+      await authService.logout();
+    } catch (err) {
+      console.warn('Logout request threw error, clearing local session anyway:', err);
+    } finally {
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   const isAdmin = user?.role === 'ADMIN';

@@ -67,11 +67,11 @@ export function AddSnackModal({
         />
 
         <div className="space-y-1.5 text-left">
-          <label className="block text-xs font-semibold text-navy-900 tracking-wide uppercase">
+          <label className="block text-xs font-semibold text-pantry-text tracking-wide uppercase">
             Category
           </label>
           <select
-            className="w-full rounded-xl border border-pantry-border bg-white px-3.5 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-800"
+            className="w-full rounded-2xl border border-pantry-border bg-pantry-surface px-3.5 py-2.5 text-sm text-pantry-text focus:outline-none focus:ring-2 focus:ring-navy-800 dark:focus:ring-navy-600 shadow-2xs"
             {...register('category')}
           >
             <option value="SWEET">🍫 Sweet</option>

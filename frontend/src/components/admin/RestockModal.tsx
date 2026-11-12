@@ -47,20 +47,20 @@ export function RestockModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Current & Projected Stock Preview */}
-        <div className="p-3.5 rounded-xl bg-pantry-subtle border border-pantry-border flex items-center justify-between text-xs">
+        <div className="p-3.5 rounded-2xl bg-pantry-subtle border border-pantry-border flex items-center justify-between text-xs">
           <div>
-            <span className="text-gray-500 block">Current Stock</span>
-            <span className="text-base font-extrabold text-navy-900">{snack.quantity}</span> packets
+            <span className="text-gray-400 dark:text-gray-500 block">Current Stock</span>
+            <span className="text-base font-extrabold text-pantry-text">{snack.quantity}</span> packets
           </div>
           <span className="text-gray-400 font-bold">+</span>
           <div>
-            <span className="text-gray-500 block">Adding</span>
+            <span className="text-gray-400 dark:text-gray-500 block">Adding</span>
             <span className="text-base font-extrabold text-coral">{amount || 0}</span> packets
           </div>
           <span className="text-gray-400 font-bold">=</span>
           <div>
-            <span className="text-gray-500 block">Projected Total</span>
-            <span className="text-base font-extrabold text-emerald-700">{newProjectedStock}</span> packets
+            <span className="text-gray-400 dark:text-gray-500 block">Projected Total</span>
+            <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{newProjectedStock}</span> packets
           </div>
         </div>
 
@@ -78,13 +78,13 @@ export function RestockModal({
 
         {/* Quick Amount Pills */}
         <div className="flex items-center gap-2 pt-1">
-          <span className="text-[11px] font-semibold text-gray-500">Quick add:</span>
+          <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Quick add:</span>
           {[5, 10, 20, 50].map((qty) => (
             <button
               key={qty}
               type="button"
               onClick={() => setAmount(qty)}
-              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white border border-pantry-border hover:bg-pantry-subtle text-navy-900 transition-colors"
+              className="px-2.5 py-1 rounded-xl text-xs font-bold bg-pantry-surface border border-pantry-border hover:bg-pantry-subtle text-pantry-text transition-colors shadow-2xs"
             >
               +{qty}
             </button>

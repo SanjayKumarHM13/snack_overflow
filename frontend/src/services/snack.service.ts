@@ -9,6 +9,7 @@ export interface SnackFilters {
   limit?: number;
   sortBy?: 'name' | 'quantity' | 'votes';
   sortOrder?: 'asc' | 'desc';
+  onlyFavourites?: boolean;
 }
 
 export interface CreateSnackDto {
@@ -24,6 +25,23 @@ export interface UpdateSnackDto {
   lowStockThreshold?: number;
 }
 
+export interface BasketConsumeItemDto {
+  snackId: string;
+  amount: number;
+}
+
+export interface BasketConsumeResponse {
+  message: string;
+  totalPackets: number;
+  items: Array<{
+    snackId: string;
+    snackName: string;
+    amount: number;
+    remainingQuantity: number;
+    status: 'STOCKED' | 'RUNNING_LOW' | 'GONE';
+  }>;
+}
+
 export const snackService = {
   async listSnacks(filters: SnackFilters = {}): Promise<PaginatedResponse<Snack>> {
     const params = new URLSearchParams();
@@ -35,6 +53,7 @@ export const snackService = {
     if (filters.limit) params.set('limit', filters.limit.toString());
     if (filters.sortBy) params.set('sortBy', filters.sortBy);
     if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
+    if (filters.onlyFavourites) params.set('onlyFavourites', 'true');
 
     const queryString = params.toString();
     return apiFetch<PaginatedResponse<Snack>>(`/snacks${queryString ? `?${queryString}` : ''}`);
@@ -42,6 +61,14 @@ export const snackService = {
 
   async getSnacks(filters: SnackFilters = {}): Promise<PaginatedResponse<Snack>> {
     return this.listSnacks(filters);
+  },
+
+  async getFavourites(page = 1, limit = 20): Promise<PaginatedResponse<Snack>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    return apiFetch<PaginatedResponse<Snack>>(`/snacks/favourites?${params.toString()}`);
   },
 
   async getSnack(id: string): Promise<Snack> {
@@ -65,6 +92,13 @@ export const snackService = {
   async deleteSnack(id: string): Promise<void> {
     await apiFetch<{ message: string }>(`/snacks/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  async consumeBasket(items: BasketConsumeItemDto[]): Promise<BasketConsumeResponse> {
+    return apiFetch<BasketConsumeResponse>('/snacks/consume-basket', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
     });
   },
 

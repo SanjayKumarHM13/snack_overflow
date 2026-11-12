@@ -19,8 +19,20 @@ export function setCsrfToken(token: string | null): void {
   cachedCsrfToken = token;
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
 export function getCsrfToken(): string | null {
-  return cachedCsrfToken;
+  if (cachedCsrfToken) return cachedCsrfToken;
+  const cookieToken = getCookie('snack_csrf');
+  if (cookieToken) {
+    cachedCsrfToken = cookieToken;
+    return cookieToken;
+  }
+  return null;
 }
 
 /**
@@ -37,11 +49,31 @@ export async function apiFetch<T>(
     ...(options.headers as Record<string, string>),
   };
 
-  // Attach CSRF token on mutating requests if available
   const method = (options.method || 'GET').toUpperCase();
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    if (cachedCsrfToken) {
-      headers['X-CSRF-Token'] = cachedCsrfToken;
+  const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+  // If mutating and we don't have a CSRF token yet, attempt retrieval from cookie or API
+  if (isMutating && !endpoint.includes('/auth/csrf-token')) {
+    let token = getCsrfToken();
+    if (!token && typeof window !== 'undefined') {
+      try {
+        const csrfRes = await fetch(`${API_BASE_URL}/auth/csrf-token`, {
+          credentials: 'include',
+        });
+        if (csrfRes.ok) {
+          const json = await csrfRes.json();
+          if (json?.csrfToken) {
+            token = json.csrfToken;
+            setCsrfToken(token);
+          }
+        }
+      } catch {
+        // Fallback silently if network fails; let request proceed
+      }
+    }
+
+    if (token) {
+      headers['X-CSRF-Token'] = token;
     }
   }
 

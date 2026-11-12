@@ -237,6 +237,62 @@ Adds packets to a snack and logs a restocking activity.
   }
   ```
 
+#### `POST /api/snacks/consume-basket`
+Atomically consumes multiple different snacks and quantities in a single all-or-nothing transaction.
+- **Access:** **Member Only**
+- **Headers:** `X-CSRF-Token: <token>`
+- **Request Body:**
+  ```json
+  {
+    "items": [
+      { "snackId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "amount": 2 },
+      { "snackId": "b2c3d4e5-f6a7-8901-bcde-f12345678901", "amount": 1 }
+    ]
+  }
+  ```
+- **Response (200 OK):**
+  ```json
+  {
+    "message": "Basket consumed successfully.",
+    "consumedCount": 2,
+    "totalPackets": 3,
+    "items": [
+      { "snackId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "amount": 2, "snackName": "Apple Juice", "remainingQuantity": 8 },
+      { "snackId": "b2c3d4e5-f6a7-8901-bcde-f12345678901", "amount": 1, "snackName": "Dairy Milk", "remainingQuantity": 19 }
+    ]
+  }
+  ```
+- **Error (409 Conflict):**
+  ```json
+  {
+    "error": {
+      "code": "INSUFFICIENT_STOCK",
+      "message": "Insufficient stock for Apple Juice. Requested 2, but only 1 available."
+    }
+  }
+  ```
+
+#### `GET /api/snacks/favourites`
+Retrieves all snacks currently marked as favourite by the authenticated member.
+- **Access:** **Member Only**
+- **Response (200 OK):**
+  ```json
+  {
+    "data": [
+      {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "name": "Apple Juice",
+        "category": "DRINK",
+        "quantity": 8,
+        "lowStockThreshold": 5,
+        "status": "STOCKED",
+        "voteCount": 3,
+        "hasVoted": true
+      }
+    ]
+  }
+  ```
+
 ---
 
 ### D. Voting
@@ -310,7 +366,7 @@ Returns aggregated analytics and highlights.
   ```
 
 #### `GET /api/activities`
-Retrieves paginated audit log entries.
+Retrieves paginated audit log entries across the entire organization.
 - **Access:** **Admin Only**
 - **Query Parameters:** `page=1&limit=20`
 - **Response (200 OK):**
@@ -333,6 +389,34 @@ Retrieves paginated audit log entries.
       "limit": 20,
       "totalItems": 150,
       "totalPages": 8
+    }
+  }
+  ```
+
+#### `GET /api/activities/me`
+Retrieves paginated personal consumption activity for the logged-in member.
+- **Access:** **Member Only**
+- **Query Parameters:** `page=1&limit=20`
+- **Response (200 OK):**
+  ```json
+  {
+    "data": [
+      {
+        "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "userId": "e4b47f0e-3c58-45e6-9b57-d65fa09e3e7f",
+        "userName": "Member User",
+        "snackId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "snackName": "Apple Juice",
+        "action": "CONSUMED",
+        "amount": 2,
+        "createdAt": "2026-11-12T16:39:16.089Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "totalItems": 5,
+      "totalPages": 1
     }
   }
   ```

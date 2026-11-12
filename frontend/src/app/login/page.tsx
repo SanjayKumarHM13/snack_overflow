@@ -6,7 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Lock, Mail, Eye, EyeOff, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
+import { Lock, Eye, EyeOff, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
 
 export default function LoginPage() {
   const { user, login, isLoading: authLoading } = useAuth();
@@ -21,7 +22,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      router.push('/dashboard');
+      if (user.role === 'ADMIN') {
+        router.push('/dashboard');
+      } else {
+        router.push('/snacks');
+      }
     }
   }, [user, authLoading, router]);
 
@@ -60,31 +65,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-pantry-bg flex flex-col justify-center items-center p-4 sm:p-6">
+    <div className="min-h-screen bg-pantry-bg flex flex-col justify-center items-center p-4 sm:p-6 relative transition-colors">
+      {/* Top right theme toggle */}
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="max-w-md w-full">
         {/* Brand Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-coral/10 border border-coral/20 text-coral text-3xl shadow-xs mb-3">
             🍿
           </div>
-          <h1 className="text-3xl font-black text-navy-900 tracking-tight">Snack Overflow</h1>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+          <h1 className="text-3xl font-black text-pantry-text tracking-tight">Snack Overflow</h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium mt-1">
             Office Pantry & Snack Inventory System
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-3xl border border-pantry-border shadow-md p-6 sm:p-8">
+        <div className="bg-pantry-surface rounded-3xl border border-pantry-border shadow-md p-6 sm:p-8 transition-colors">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-navy-900 tracking-tight">Welcome back</h2>
-            <p className="text-xs text-gray-500 mt-1">
+            <h2 className="text-xl font-bold text-pantry-text tracking-tight">Welcome back</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Sign in with your work email or choose a seeded demo account below.
             </p>
           </div>
 
           {/* Error Alert */}
           {errorMessage && (
-            <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-xs text-rose-900">
+            <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-start gap-2.5 text-xs text-rose-900 dark:text-rose-200">
               <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div className="flex-1 font-medium">{errorMessage}</div>
             </div>
@@ -119,7 +129,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-8 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3.5 top-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -140,7 +150,7 @@ export default function LoginPage() {
 
           {/* Demo Account Quick-Fill Section */}
           <div className="mt-8 pt-6 border-t border-pantry-border">
-            <div className="flex items-center gap-2 mb-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <div className="flex items-center gap-2 mb-3 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Quick Demo Accounts</span>
             </div>
@@ -149,43 +159,47 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handlePreFill('admin@example.com', 'Admin1234!')}
-                className="flex items-start gap-2.5 p-3 rounded-xl border border-pantry-border bg-pantry-subtle/50 hover:bg-pantry-subtle hover:border-coral/40 text-left transition-all group"
+                className="flex items-start gap-2.5 p-3 rounded-2xl border border-pantry-border bg-pantry-subtle/50 hover:bg-pantry-subtle hover:border-coral/40 text-left transition-all group"
               >
                 <div className="w-7 h-7 rounded-lg bg-navy-900 text-white flex items-center justify-center shrink-0 text-xs font-bold group-hover:scale-105 transition-transform">
                   👑
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-navy-900 flex items-center gap-1">
+                  <div className="text-xs font-bold text-pantry-text flex items-center gap-1">
                     Admin User
                   </div>
-                  <div className="text-[11px] text-gray-500 truncate">admin@example.com</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                    admin@example.com
+                  </div>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handlePreFill('member@example.com', 'Member1234!')}
-                className="flex items-start gap-2.5 p-3 rounded-xl border border-pantry-border bg-pantry-subtle/50 hover:bg-pantry-subtle hover:border-coral/40 text-left transition-all group"
+                className="flex items-start gap-2.5 p-3 rounded-2xl border border-pantry-border bg-pantry-subtle/50 hover:bg-pantry-subtle hover:border-coral/40 text-left transition-all group"
               >
                 <div className="w-7 h-7 rounded-lg bg-coral/20 text-coral flex items-center justify-center shrink-0 text-xs font-bold group-hover:scale-105 transition-transform">
                   <UserCheck className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-navy-900 flex items-center gap-1">
+                  <div className="text-xs font-bold text-pantry-text flex items-center gap-1">
                     Team Member
                   </div>
-                  <div className="text-[11px] text-gray-500 truncate">member@example.com</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                    member@example.com
+                  </div>
                 </div>
               </button>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2.5 text-center">
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2.5 text-center">
               Click either chip to autofill credentials instantly.
             </p>
           </div>
         </div>
 
         {/* Security badge footer */}
-        <div className="text-center mt-6 text-xs text-gray-400 flex items-center justify-center gap-1.5">
+        <div className="text-center mt-6 text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center gap-1.5">
           <Lock className="w-3.5 h-3.5" />
           <span>HTTP-only Cookie Session • CSRF Protected • PostgreSQL Hashed</span>
         </div>

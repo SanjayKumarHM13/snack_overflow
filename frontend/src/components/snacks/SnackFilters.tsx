@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SnackCategory, SnackStatus } from '../../types/index';
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface SnackFiltersProps {
@@ -50,7 +50,7 @@ export function SnackFilters({
             placeholder="Search snacks by name..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-pantry-border bg-white text-sm text-navy-950 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-navy-800 transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-pantry-border bg-pantry-surface text-xs sm:text-sm text-pantry-text placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-coral/40 transition-colors shadow-2xs"
           />
         </div>
 
@@ -60,7 +60,7 @@ export function SnackFilters({
           <select
             value={status}
             onChange={(e) => onStatusChange(e.target.value as SnackStatus | '')}
-            className="px-3 py-2 rounded-xl border border-pantry-border bg-white text-xs font-semibold text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-800"
+            className="px-3 py-2 rounded-2xl border border-pantry-border bg-pantry-surface text-xs font-bold text-pantry-text focus:outline-none focus:ring-2 focus:ring-coral/40 shadow-2xs"
           >
             <option value="">All Stock Statuses</option>
             <option value="STOCKED">Stocked Only</option>
@@ -69,29 +69,30 @@ export function SnackFilters({
           </select>
 
           {/* Sort Dropdown */}
-          <div className="flex items-center rounded-xl border border-pantry-border bg-white overflow-hidden">
+          <div className="flex items-center rounded-2xl border border-pantry-border bg-pantry-surface overflow-hidden shadow-2xs">
             <select
               value={sortBy}
               onChange={(e) => onSortByChange(e.target.value as 'name' | 'quantity' | 'votes')}
-              className="px-3 py-2 bg-transparent text-xs font-semibold text-navy-900 focus:outline-none border-r border-pantry-border"
+              className="px-3 py-2 bg-transparent text-xs font-bold text-pantry-text focus:outline-none border-r border-pantry-border"
             >
               <option value="name">Sort: Name</option>
               <option value="quantity">Sort: Stock Quantity</option>
               <option value="votes">Sort: Highest Votes</option>
             </select>
             <button
+              type="button"
               onClick={() => onSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc')}
               title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
-              className="px-2.5 py-2 text-xs font-bold text-gray-600 hover:text-navy-900 hover:bg-pantry-subtle transition-colors"
+              className="px-2.5 py-2 text-xs font-black text-gray-500 hover:text-pantry-text hover:bg-pantry-subtle transition-colors"
             >
-              {sortOrder === 'asc' ? '▲ ASC' : '▼ DESC'}
+              {sortOrder === 'asc' ? '▲' : '▼'}
             </button>
           </div>
         </div>
       </div>
 
       {/* Category Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {categories.map((cat) => {
           const isSelected = category === cat.id;
           return (
@@ -99,10 +100,10 @@ export function SnackFilters({
               key={cat.id || 'all'}
               onClick={() => onCategoryChange(cat.id)}
               className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border',
+                'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border select-none',
                 isSelected
-                  ? 'bg-navy-900 text-white border-navy-900 shadow-sm'
-                  : 'bg-white text-gray-600 border-pantry-border hover:bg-pantry-subtle hover:text-navy-900'
+                  ? 'bg-navy-900 text-white dark:bg-coral dark:text-white border-navy-900 dark:border-coral shadow-xs'
+                  : 'bg-pantry-surface text-gray-600 dark:text-gray-300 border-pantry-border hover:bg-pantry-subtle hover:text-pantry-text'
               )}
             >
               <span>{cat.icon}</span>

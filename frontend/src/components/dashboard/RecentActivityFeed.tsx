@@ -22,14 +22,14 @@ export function RecentActivityFeed({ activities }: { activities: ActivityItem[] 
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <History className="w-4 h-4 text-navy-800" />
+          <History className="w-4 h-4 text-pantry-text" />
           <CardTitle>Recent Pantry Activity</CardTitle>
         </div>
       </CardHeader>
 
       {activities.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <p className="text-sm font-semibold">No recent activity</p>
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <p className="text-sm font-semibold text-pantry-text">No recent activity</p>
           <p className="text-xs mt-1">Snack consumptions and restocks will appear here.</p>
         </div>
       ) : (
@@ -39,13 +39,15 @@ export function RecentActivityFeed({ activities }: { activities: ActivityItem[] 
             return (
               <div
                 key={act.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-pantry-subtle/50 border border-pantry-border/60 text-xs"
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-pantry-subtle/50 border border-pantry-border/60 text-xs"
               >
                 <div className="flex items-center gap-3">
                   <div
                     className={cn(
-                      'p-2 rounded-lg',
-                      isConsumed ? 'bg-coral/10 text-coral' : 'bg-emerald-50 text-emerald-700'
+                      'p-2 rounded-xl',
+                      isConsumed
+                        ? 'bg-coral/10 text-coral'
+                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                     )}
                   >
                     {isConsumed ? (
@@ -55,23 +57,23 @@ export function RecentActivityFeed({ activities }: { activities: ActivityItem[] 
                     )}
                   </div>
                   <div>
-                    <p className="font-bold text-navy-900">
+                    <p className="font-bold text-pantry-text">
                       {act.userName}{' '}
-                      <span className="font-normal text-gray-600">
-                        {isConsumed ? 'grabbed' : 'restocked'}
+                      <span className="font-normal text-gray-500 dark:text-gray-400">
+                        {isConsumed ? 'consumed' : 'restocked'}
                       </span>{' '}
-                      <span className="font-bold text-navy-900">{act.amount}x</span> {act.snackName}
+                      <span className="font-bold text-pantry-text">{act.amount}x</span> {act.snackName}
                     </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{formatTime(act.createdAt)}</p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{formatTime(act.createdAt)}</p>
                   </div>
                 </div>
 
                 <span
                   className={cn(
-                    'px-2 py-0.5 rounded-md font-bold uppercase tracking-wider text-[10px]',
+                    'px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider text-[10px]',
                     isConsumed
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                      ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/60'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/60'
                   )}
                 >
                   {act.action}

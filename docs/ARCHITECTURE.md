@@ -118,3 +118,37 @@ State-changing operations (`POST`, `PUT`, `PATCH`, `DELETE`) are protected by a 
 - **Activity Records:** Every consumption and restocking event creates an immutable audit row.
 - **User Integrity (`RESTRICT`):** Deleting a user who has historical activities is restricted by foreign key constraint (`onDelete: Restrict`) to preserve audit trails.
 - **Snack Deletion (`SET NULL`):** Deleting a snack preserves the historical activity log by setting `snackId` to `null` while retaining the `snackName` snapshot string.
+
+---
+
+## 6. Product UX & Role Separation Architecture
+
+### A. Strict Role-Based User Journey
+- **Administrator Experience:**
+  - Dedicated landing: `/dashboard`.
+  - Administrative hub with real-time stock telemetry, depleted alerts, Snack of the Week, and audit logs.
+  - Complete removal of snack consumption controls from the Admin UI and backend endpoints (`403 MEMBER_ROLE_REQUIRED`).
+  - Full CRUD inventory management and restocking via `/admin`.
+  - Global immutable activity audit log via `/activities`.
+- **Member Experience:**
+  - Dedicated landing: `/snacks` (Pantry Snack Catalog).
+  - Complete removal of administrative dashboard and global organizational logs.
+  - Interactive snack cards with visual category gradients, live stock levels, and instant favourite hearts.
+  - Dedicated personal pages: **My Favourites** (`/favourites`) and **My Consumption History** (`/history`).
+  - Automatic role-based client routing in `AppShell` redirecting unprivileged route attempts back to role-appropriate home pages.
+
+### B. Snack Basket & Multi-Snack Atomic Transactions
+- Members can accumulate multiple snacks and quantities in a client-side basket managed by `BasketContext`.
+- Atomically consumed via `POST /api/snacks/consume-basket`.
+- The backend evaluates each item conditionally within a single database transaction (`prisma.$transaction`).
+- **All-or-Nothing Guarantee:** If any requested item exceeds live available inventory, the entire transaction rolls back cleanly, returning `409 Conflict` with itemized error context, ensuring zero partial-state deductions.
+- Individual immutable `Activity` audit records with action `CONSUMED` are generated for each consumed basket item within the transaction.
+
+### C. Design Tokens & Global Theme Architecture
+- Built on semantic CSS variables configured in `tailwind.config.ts` and `globals.css`:
+  - `bg-pantry-bg`: `#F8F7F3` (Light) / `#0B1120` (Dark)
+  - `bg-pantry-surface`: `#FFFFFF` (Light) / `#151E32` (Dark)
+  - `bg-pantry-subtle`: `#F3F2EC` (Light) / `#1E293B` (Dark)
+  - `text-pantry-text`: `#0F172A` (Light) / `#F8FAFC` (Dark)
+  - `border-pantry-border`: `#E5E3D8` (Light) / `#334155` (Dark)
+- Managed via `ThemeContext` supporting `light`, `dark`, and `system` preferences with `localStorage` persistence and zero-flash layout hydration script.

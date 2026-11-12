@@ -18,11 +18,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full space-y-1.5 text-left">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold text-navy-900 tracking-wide uppercase">
+          <label htmlFor={inputId} className="block text-xs font-bold text-pantry-text tracking-wide uppercase">
             {label}
           </label>
         )}
-        <div className="relative rounded-xl shadow-sm">
+        <div className="relative rounded-xl shadow-xs">
           {leftIcon && (
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
               {leftIcon}
@@ -32,13 +32,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-navy-950 placeholder:text-gray-400 transition-colors',
-              'focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent',
+              'block w-full rounded-xl border bg-pantry-surface px-3.5 py-2.5 text-sm text-pantry-text placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-colors',
+              'focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-coral',
               leftIcon && 'pl-10',
               rightIcon && 'pr-10',
               error
                 ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/20'
-                : 'border-pantry-border hover:border-gray-400',
+                : 'border-pantry-border hover:border-gray-400 dark:hover:border-gray-500',
               className
             )}
             {...props}
@@ -50,7 +50,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && <p className="text-xs font-medium text-rose-600 mt-1">{error}</p>}
-        {helperText && !error && <p className="text-xs text-gray-500 mt-1">{helperText}</p>}
+        {helperText && !error && <p className="text-xs text-gray-400 mt-1">{helperText}</p>}
       </div>
     );
   }
