@@ -1,10 +1,15 @@
-import { describe, it, expect, afterAll } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import bcrypt from 'bcryptjs';
+import { testPrisma, seedTestDatabase, verifyTestDatabaseSafety } from './setup.js';
 
-const prisma = new PrismaClient();
+const prisma = testPrisma;
 
 describe('Database Integrity and Relational Constraints', () => {
+  beforeAll(async () => {
+    await verifyTestDatabaseSafety();
+    await seedTestDatabase();
+  });
+
   afterAll(async () => {
     await prisma.$disconnect();
   });
