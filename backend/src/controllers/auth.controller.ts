@@ -75,7 +75,10 @@ export class AuthController {
    */
   async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const rawToken = req.cookies?.[config.cookieName];
+      let rawToken = req.cookies?.[config.cookieName];
+      if (!rawToken && req.headers.authorization?.startsWith('Bearer ')) {
+        rawToken = req.headers.authorization.slice(7).trim();
+      }
       await authService.logout(rawToken);
 
       res.clearCookie(config.cookieName, {

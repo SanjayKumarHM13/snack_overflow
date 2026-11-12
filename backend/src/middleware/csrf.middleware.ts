@@ -25,27 +25,23 @@ export function verifyCsrf(req: Request, _res: Response, next: NextFunction): vo
   const origin = req.headers.origin;
   const referer = req.headers.referer;
 
-  // In test environments without browser origin, allow if test bypass or header present
-  if (config.nodeEnv !== 'test') {
-    if (origin) {
-      if (origin !== config.frontendUrl) {
-        return next(new ForbiddenError('Cross-Origin request blocked. Origin mismatch.', 'CSRF_ORIGIN_INVALID'));
-      }
-    } else if (referer) {
-      if (!referer.startsWith(config.frontendUrl)) {
-        return next(new ForbiddenError('Cross-Origin request blocked. Referer mismatch.', 'CSRF_REFERER_INVALID'));
-      }
-    }
+  if (origin && origin !== config.frontendUrl) {
+    return next(new ForbiddenError('Cross-Origin request blocked. Origin mismatch.', 'CSRF_ORIGIN_INVALID'));
+  }
+
+  if (referer && !referer.startsWith(config.frontendUrl)) {
+    return next(new ForbiddenError('Cross-Origin request blocked. Referer mismatch.', 'CSRF_REFERER_INVALID'));
   }
 
   // 2. Synchronizer CSRF Token Validation
   // Check header 'x-csrf-token' against cookie 'snack_csrf'
   const headerToken = (req.headers['x-csrf-token'] as string) || (req.headers['x-xsrf-token'] as string);
   const cookieToken = req.cookies?.[config.csrfCookieName];
+  const hasSessionCookie = Boolean(req.cookies?.[config.cookieName]);
 
-  if (!cookieToken || !headerToken) {
-    // If not in test environment or if cookie was expected
-    if (config.nodeEnv !== 'test' || cookieToken) {
+  // When cookie credentials are present or in production, CSRF validation is strictly required
+  if (hasSessionCookie || cookieToken || config.nodeEnv === 'production') {
+    if (!cookieToken || !headerToken) {
       return next(new ForbiddenError('CSRF token missing from request header or cookie.', 'CSRF_TOKEN_MISSING'));
     }
   }

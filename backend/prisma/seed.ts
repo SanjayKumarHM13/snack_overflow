@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main(): Promise<void> {
+export async function seedDatabase(client: PrismaClient = prisma): Promise<void> {
   console.info('[Seed] Starting database seed...');
 
   // 1. Demo Users
@@ -11,7 +11,7 @@ async function main(): Promise<void> {
   const adminPasswordHash = await bcrypt.hash('Admin1234!', saltRounds);
   const memberPasswordHash = await bcrypt.hash('Member1234!', saltRounds);
 
-  const admin = await prisma.user.upsert({
+  const admin = await client.user.upsert({
     where: { email: 'admin@example.com' },
     update: {
       name: 'Admin User',
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
     },
   });
 
-  const member = await prisma.user.upsert({
+  const member = await client.user.upsert({
     where: { email: 'member@example.com' },
     update: {
       name: 'Member User',
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
 
   const seededSnacks = [];
   for (const item of snackData) {
-    const snack = await prisma.snack.upsert({
+    const snack = await client.snack.upsert({
       where: { name: item.name },
       update: {
         category: item.category,
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
   const dairyMilkSnack = seededSnacks.find((s) => s.name === 'Dairy Milk');
 
   if (oreoSnack) {
-    await prisma.vote.upsert({
+    await client.vote.upsert({
       where: {
         unique_user_snack_vote: {
           userId: member.id,
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   }
 
   if (dairyMilkSnack) {
-    await prisma.vote.upsert({
+    await client.vote.upsert({
       where: {
         unique_user_snack_vote: {
           userId: member.id,
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
       },
     });
 
-    await prisma.vote.upsert({
+    await client.vote.upsert({
       where: {
         unique_user_snack_vote: {
           userId: admin.id,
@@ -130,9 +130,9 @@ async function main(): Promise<void> {
   console.info('[Seed] Seeded sample votes.');
 
   // 4. Sample Activities (Only add baseline activities if table is currently empty)
-  const existingActivitiesCount = await prisma.activity.count();
+  const existingActivitiesCount = await client.activity.count();
   if (existingActivitiesCount === 0 && oreoSnack && dairyMilkSnack) {
-    await prisma.activity.createMany({
+    await client.activity.createMany({
       data: [
         {
           userId: admin.id,
@@ -161,6 +161,10 @@ async function main(): Promise<void> {
   }
 
   console.info('[Seed] Database seeding completed successfully.');
+}
+
+async function main(): Promise<void> {
+  await seedDatabase();
 }
 
 main()
