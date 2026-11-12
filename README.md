@@ -15,12 +15,16 @@
 ## Key Features
 
 - **Race-Condition-Free Inventory Consumption:** Employs atomic conditional PostgreSQL `UPDATE` statements with row-level locks ensuring that even if 10 users click "Consume" simultaneously on the last 3 items, exactly 3 succeed and 7 receive `409 Conflict`.
-- **Role-Based Access Control (RBAC):** Strict separation between `ADMIN` (stock creation, editing, restock, activity logs) and `MEMBER` (browsing, atomic consumption, voting).
+- **Multi-Snack Transactional Basket:** Members can assemble multiple snack varieties and quantities into a snack basket, atomically consumed in an all-or-nothing PostgreSQL transaction (`POST /api/snacks/consume-basket`).
+- **Strict Role-Based Experience (RBAC):**
+  - **Admin:** Insight-driven dashboard (`/dashboard`), full inventory management (`/admin`), and immutable audit trail (`/activities`). Consumption controls are completely removed from both UI and API (`403 MEMBER_ROLE_REQUIRED`).
+  - **Member:** Primary landing on the Snack Catalog (`/snacks`), personalized **My Favourites** (`/favourites`), and personal **Consumption History** (`/history`).
+- **Global Theme Engine:** Seamless switching between **Light** (`#F8F7F3`), **Dark** (`#0B1120`), and **System** preference with zero page flicker, persistent storage, and WCAG AAA contrast.
 - **Hardened Database Integrity:** Enforces composite unique constraints on `(userId, snackId)`, `CHECK (quantity >= 0)`, `CHECK (lowStockThreshold >= 0)`, and `CHECK (amount > 0)`.
 - **Dynamic Stock Status:** Real-time computation of `STOCKED`, `RUNNING_LOW`, and `GONE` statuses—never stored statically in the database.
 - **Audit-Trail Continuity:** Uses `ON DELETE RESTRICT` for users to guarantee immutable activity history, and `ON DELETE SET NULL` with a historical snack snapshot for deleted items.
-- **Secure Authentication:** HTTP-only, `SameSite=Lax` cookies with Origin validation and bcrypt password hashing (cost factor 12).
-- **Modern Pantry Dashboard:** Live metrics, Snack of the Week calculation with deterministic tie-breaking, real-time alerts, and recent activities.
+- **Dual-Layer CSRF Defense:** Origin and Referer verification coupled with cryptographic synchronizer tokens (`snack_csrf` cookie + `X-CSRF-Token` header) and server-side session revocation.
+- **Modern Pantry Dashboard:** Live telemetry, Snack of the Week calculation with deterministic tie-breaking, real-time alerts, and recent activities.
 
 ---
 
@@ -31,7 +35,7 @@
 | **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Lucide React, TanStack Query, React Hook Form, Zod |
 | **Backend** | Node.js 22, Express.js, TypeScript, Prisma ORM 6, Zod, JWT, bcryptjs, Cookie-Parser |
 | **Database** | PostgreSQL 18 with relational constraints and atomic row updates |
-| **Testing** | Vitest, Supertest, real PostgreSQL concurrency test suite |
+| **Testing** | Vitest, Supertest, real PostgreSQL concurrency test suite, frontend interaction tests |
 
 ---
 
@@ -41,11 +45,12 @@
 snack-overflow/
 ├── frontend/             # Next.js 15 App Router web client
 │   ├── src/
-│   │   ├── app/          # Routes: login, dashboard, snacks, admin, activities
-│   │   ├── components/   # UI components, layout shell, modals, cards
-│   │   ├── hooks/        # React Query and form hooks
-│   │   ├── services/     # Centralized API service modules
+│   │   ├── app/          # Routes: login, dashboard, snacks, favourites, history, admin, activities
+│   │   ├── components/   # UI components, layout shell, basket drawer, modals, cards
+│   │   ├── context/      # AuthContext, BasketContext, ThemeContext, ToastContext, QueryProvider
+│   │   ├── services/     # Centralized API service modules (snack, activity, auth, api)
 │   │   └── lib/          # Utilities, dynamic status calculations
+│   ├── tests/            # Frontend service and basket state tests (Vitest)
 │   └── package.json
 ├── backend/              # Express.js REST API
 │   ├── src/
@@ -121,8 +126,14 @@ snack-overflow/
 All integration and concurrency tests execute against a dedicated, isolated PostgreSQL test database (`snack_overflow_test`) with zero mock data for database queries.
 
 ```bash
-# Run all backend integration & concurrency tests
-npm --prefix backend run test
+# Run all tests across the monorepo (74 tests: 59 backend + 15 frontend)
+npm run test
+
+# Run backend integration & concurrency tests only (59 tests)
+npm run test:backend
+
+# Run frontend service & basket logic tests only (15 tests)
+npm run test:frontend
 
 # Run strict TypeScript typecheck across monorepo
 npm run typecheck

@@ -28,7 +28,7 @@ erDiagram
     sessions {
         uuid id PK
         uuid userId FK
-        varchar(500) token UK
+        varchar(64) tokenHash UK
         timestamptz expiresAt
         timestamptz revokedAt "nullable"
         timestamptz createdAt
@@ -81,7 +81,7 @@ Represents an employee or administrator.
 Tracks active and revoked user authentication sessions for server-side revocation.
 - `id`: `UUID` primary key.
 - `userId`: `UUID` foreign key referencing `users(id)` with `ON DELETE CASCADE`.
-- `token`: `VARCHAR(500)` — unique cryptographic token or session identifier.
+- `tokenHash`: `VARCHAR(64)` — unique SHA-256 cryptographic hash of the session raw token.
 - `expiresAt`: `TIMESTAMPTZ(6)` — session expiry timestamp.
 - `revokedAt`: `TIMESTAMPTZ(6)` — nullable; non-null indicates an invalidated/logged-out session.
 - `userAgent`: `VARCHAR(255)` — browser client string.
@@ -141,9 +141,8 @@ Stock status is dynamically computed and never stored in the database:
 
 ## 6. Indexes & Query Optimization
 - `snacks(category)`: Accelerates category filter dropdown queries.
-- `snacks(name)`: Accelerates alphabetical inventory sorting and searches.
 - `votes(snackId)`: Accelerates vote count aggregation per snack.
-- `votes(userId)`: Fast lookup of snacks already voted for by the current user.
+- `votes(userId, snackId)`: Composite unique constraint index, covering user duplicate vote checks.
 - `activities(createdAt DESC)`: Optimizes paginated audit log queries.
 - `activities(userId)`: Speeds up user-specific activity retrieval.
 - `activities(snackId)`: Speeds up snack-specific activity history.
