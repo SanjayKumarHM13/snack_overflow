@@ -36,8 +36,26 @@ model User {
 
   votes        Vote[]
   activities   Activity[]
+  sessions     Session[]
 
   @@map("users")
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.VarChar(64)
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  userAgent String?   @db.VarChar(255)
+  ipAddress String?   @db.VarChar(45)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 model Snack {
@@ -53,7 +71,6 @@ model Snack {
   activities        Activity[]
 
   @@index([category])
-  @@index([name])
   @@map("snacks")
 }
 
@@ -68,7 +85,6 @@ model Vote {
 
   @@unique([userId, snackId], name: "unique_user_snack_vote")
   @@index([snackId])
-  @@index([userId])
   @@map("votes")
 }
 
