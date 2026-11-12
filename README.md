@@ -116,6 +116,40 @@ snack-overflow/
 
 ---
 
+## Automated Testing & Quality Verification
+
+All integration and concurrency tests execute against a dedicated, isolated PostgreSQL test database (`snack_overflow_test`) with zero mock data for database queries.
+
+```bash
+# Run all backend integration & concurrency tests
+npm --prefix backend run test
+
+# Run strict TypeScript typecheck across monorepo
+npm run typecheck
+
+# Run ESLint across monorepo
+npm run lint
+
+# Build frontend production bundle
+npm --prefix frontend run build
+```
+
+### Concurrency Test Scenarios Verified
+
+1. **Scenario 1 (10 Simultaneous Requests against Stock 3):**
+   - 10 parallel HTTP POST `/api/snacks/:id/consume` requests with amount = 1.
+   - Result: Exactly 3 requests succeed with `200 OK`, exactly 7 requests receive `409 Conflict (INSUFFICIENT_STOCK)`.
+   - Final stock quantity: exactly 0.
+   - Activity audit records created: exactly 3.
+
+2. **Scenario 2 (2 Concurrent Multi-Packet Requests against Stock 3):**
+   - 2 parallel HTTP POST `/api/snacks/:id/consume` requests with amount = 2.
+   - Result: Exactly 1 request succeeds with `200 OK`, exactly 1 request receives `409 Conflict`.
+   - Final stock quantity: exactly 1.
+   - Activity audit records created: exactly 1.
+
+---
+
 ## Concurrency Guarantees
 
 Snack Overflow's core engineering achievement is safe, high-concurrency inventory decrementing without overconsumption:
