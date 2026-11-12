@@ -24,6 +24,24 @@ export const restockSnackSchema = z.object({
   amount: z.number().int('Amount must be an integer').positive('Restock amount must be a positive integer'),
 });
 
+export const basketItemSchema = z.object({
+  snackId: z.string().uuid('Invalid snack UUID format'),
+  amount: z.number().int('Amount must be an integer').positive('Consumption amount must be a positive integer'),
+});
+
+export const consumeBasketSchema = z.object({
+  items: z
+    .array(basketItemSchema)
+    .min(1, 'Basket cannot be empty')
+    .refine(
+      (items) => {
+        const ids = items.map((i) => i.snackId);
+        return new Set(ids).size === ids.length;
+      },
+      { message: 'Basket cannot contain duplicate snack items' }
+    ),
+});
+
 export const querySnacksSchema = z.object({
   category: z.nativeEnum(SnackCategory).optional(),
   status: z.enum(['STOCKED', 'RUNNING_LOW', 'GONE']).optional(),
@@ -32,10 +50,19 @@ export const querySnacksSchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(10),
   sortBy: z.enum(['name', 'quantity', 'votes']).default('name'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  onlyFavourites: z
+    .preprocess((val) => {
+      if (val === 'true' || val === true) return true;
+      if (val === 'false' || val === false) return false;
+      return undefined;
+    }, z.boolean().optional())
+    .optional(),
 });
 
 export type CreateSnackInput = z.infer<typeof createSnackSchema>;
 export type UpdateSnackInput = z.infer<typeof updateSnackSchema>;
 export type ConsumeSnackInput = z.infer<typeof consumeSnackSchema>;
 export type RestockSnackInput = z.infer<typeof restockSnackSchema>;
+export type BasketItemInput = z.infer<typeof basketItemSchema>;
+export type ConsumeBasketInput = z.infer<typeof consumeBasketSchema>;
 export type QuerySnacksInput = z.infer<typeof querySnacksSchema>;

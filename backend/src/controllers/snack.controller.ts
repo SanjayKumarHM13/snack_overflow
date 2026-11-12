@@ -63,6 +63,26 @@ export class SnackController {
     }
   }
 
+  async consumeBasket(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { items } = req.body;
+      const result = await snackService.consumeBasket(items, req.user!.id);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listFavourites(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const query = { ...(req.query as any), onlyFavourites: true };
+      const result = await snackService.listSnacks(query, req.user!.id);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async restockSnack(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { amount } = req.body;

@@ -11,6 +11,7 @@ import {
   CreateSnackInput,
   UpdateSnackInput,
   QuerySnacksInput,
+  BasketItemInput,
 } from '../validators/snack.validator.js';
 
 export interface SnackWithMeta {
@@ -56,6 +57,12 @@ export class SnackService {
       conditions.push(Prisma.sql`s.quantity > 0 AND s.quantity <= s."lowStockThreshold"`);
     } else if (status === 'STOCKED') {
       conditions.push(Prisma.sql`s.quantity > s."lowStockThreshold"`);
+    }
+
+    if (query.onlyFavourites && currentUserId) {
+      conditions.push(
+        Prisma.sql`EXISTS (SELECT 1 FROM "votes" v_fav WHERE v_fav."snackId" = s.id AND v_fav."userId" = ${currentUserId}::uuid)`
+      );
     }
 
     const whereClause = conditions.length > 0
@@ -329,6 +336,121 @@ export class SnackService {
       return {
         snack: snackWithMeta,
         consumedAmount: amount,
+      };
+    });
+  }
+
+  /**
+   * Atomically consumes multiple snacks in a basket (Member only).
+   * All-or-Nothing Guarantee:
+   * Wrapped in a single PostgreSQL transaction.
+   * If any item is missing or has insufficient stock, the entire basket operation
+   * aborts and rolls back completely, ensuring no partial deductions or corrupt state.
+   */
+  async consumeBasket(
+    items: BasketItemInput[],
+    userId: string
+  ): Promise<{
+    message: string;
+    totalPackets: number;
+    items: Array<{
+      snackId: string;
+      snackName: string;
+      amount: number;
+      remainingQuantity: number;
+      status: 'STOCKED' | 'RUNNING_LOW' | 'GONE';
+    }>;
+  }> {
+    if (!items || items.length === 0) {
+      throw new BadRequestError('Basket cannot be empty.');
+    }
+
+    const uniqueIds = new Set(items.map((i) => i.snackId));
+    if (uniqueIds.size !== items.length) {
+      throw new BadRequestError('Basket cannot contain duplicate snack items.');
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      // 1. Verify existence of all requested snacks
+      const snackIds = items.map((i) => i.snackId);
+      const existingSnacks = await tx.snack.findMany({
+        where: { id: { in: snackIds } },
+      });
+
+      if (existingSnacks.length !== items.length) {
+        const foundIds = new Set(existingSnacks.map((s) => s.id));
+        const missing = items.find((i) => !foundIds.has(i.snackId));
+        throw new NotFoundError(`Snack with ID '${missing?.snackId}' was not found in pantry inventory.`);
+      }
+
+      const snackMap = new Map(existingSnacks.map((s) => [s.id, s]));
+      const results: Array<{
+        snackId: string;
+        snackName: string;
+        amount: number;
+        remainingQuantity: number;
+        status: 'STOCKED' | 'RUNNING_LOW' | 'GONE';
+      }> = [];
+
+      let totalPackets = 0;
+
+      // 2. Perform conditional atomic decrements with PostgreSQL row-level locks
+      for (const item of items) {
+        const snackBefore = snackMap.get(item.snackId)!;
+
+        const updatedRows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            name: string;
+            category: SnackCategory;
+            quantity: number;
+            lowStockThreshold: number;
+            createdAt: Date;
+            updatedAt: Date;
+          }>
+        >`
+          UPDATE "snacks"
+          SET "quantity" = "quantity" - ${item.amount}, "updatedAt" = NOW()
+          WHERE "id" = ${item.snackId}::uuid AND "quantity" >= ${item.amount}
+          RETURNING *;
+        `;
+
+        if (updatedRows.length === 0) {
+          // Fetch current live stock for precise error details
+          const currentLive = await tx.snack.findUnique({ where: { id: item.snackId } });
+          const available = currentLive ? currentLive.quantity : 0;
+          throw new InsufficientStockError(
+            `Insufficient stock for '${snackBefore.name}'. Requested: ${item.amount}, Available: ${available}. Please refresh your basket.`
+          );
+        }
+
+        const updatedSnack = updatedRows[0];
+        totalPackets += item.amount;
+
+        // 3. Record Activity log within the exact same transaction
+        await tx.activity.create({
+          data: {
+            userId,
+            snackId: updatedSnack.id,
+            snackName: updatedSnack.name,
+            action: 'CONSUMED',
+            amount: item.amount,
+          },
+        });
+
+        results.push({
+          snackId: updatedSnack.id,
+          snackName: updatedSnack.name,
+          amount: item.amount,
+          remainingQuantity: updatedSnack.quantity,
+          status: calculateSnackStatus(updatedSnack.quantity, updatedSnack.lowStockThreshold),
+        });
+      }
+
+      return {
+        message: `Successfully consumed ${totalPackets} packet(s) across ${items.length} snack variety(ies).`,
+        totalPackets,
+        items: results,
       };
     });
   }
