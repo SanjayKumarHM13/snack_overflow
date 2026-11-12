@@ -1,18 +1,32 @@
-export default function HomePage() {
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
+import { Loader2 } from 'lucide-react';
+
+export default function RootPage() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/login');
+      }
+    }
+  }, [user, isLoading, router]);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 text-center">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-sm border border-pantry-border">
-        <div className="w-12 h-12 bg-coral/10 rounded-xl flex items-center justify-center mx-auto mb-4 text-coral font-bold text-2xl">
-          🍿
-        </div>
-        <h1 className="text-2xl font-bold text-navy-900 mb-2">Snack Overflow</h1>
-        <p className="text-sm text-gray-600 mb-6">
-          Office Pantry & Snack Inventory Management System
+    <div className="min-h-screen flex items-center justify-center bg-pantry-bg">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-8 h-8 text-coral animate-spin" />
+        <p className="text-xs font-semibold text-navy-900 uppercase tracking-widest">
+          Loading Snack Overflow...
         </p>
-        <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-          ● Phase 1 Environment Ready
-        </div>
       </div>
-    </main>
+    </div>
   );
 }
