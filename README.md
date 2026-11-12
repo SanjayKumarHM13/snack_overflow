@@ -1,0 +1,128 @@
+# Snack Overflow — Office Pantry & Snack Inventory System
+
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)
+![Node](https://img.shields.io/badge/Node.js-22_LTS-green?logo=node.js)
+![Next.js](https://img.shields.io/badge/Next.js-15_App_Router-black?logo=next.js)
+![Express](https://img.shields.io/badge/Express-4.21-lightgrey?logo=express)
+![Prisma](https://img.shields.io/badge/Prisma-6.4-blueviolet?logo=prisma)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue?logo=postgresql)
+
+**Snack Overflow** is a full-stack, production-minded office pantry and snack inventory management application built to handle high-concurrency snack consumption without race conditions, stock discrepancies, or duplicate voting.
+
+---
+
+## Key Features
+
+- **Race-Condition-Free Inventory Consumption:** Employs atomic conditional PostgreSQL `UPDATE` statements with row-level locks ensuring that even if 10 users click "Consume" simultaneously on the last 3 items, exactly 3 succeed and 7 receive `409 Conflict`.
+- **Role-Based Access Control (RBAC):** Strict separation between `ADMIN` (stock creation, editing, restock, activity logs) and `MEMBER` (browsing, atomic consumption, voting).
+- **Hardened Database Integrity:** Enforces composite unique constraints on `(userId, snackId)`, `CHECK (quantity >= 0)`, `CHECK (lowStockThreshold >= 0)`, and `CHECK (amount > 0)`.
+- **Dynamic Stock Status:** Real-time computation of `STOCKED`, `RUNNING_LOW`, and `GONE` statuses—never stored statically in the database.
+- **Audit-Trail Continuity:** Uses `ON DELETE RESTRICT` for users to guarantee immutable activity history, and `ON DELETE SET NULL` with a historical snack snapshot for deleted items.
+- **Secure Authentication:** HTTP-only, `SameSite=Lax` cookies with Origin validation and bcrypt password hashing (cost factor 12).
+- **Modern Pantry Dashboard:** Live metrics, Snack of the Week calculation with deterministic tie-breaking, real-time alerts, and recent activities.
+
+---
+
+## Technology Stack
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Lucide React, TanStack Query, React Hook Form, Zod |
+| **Backend** | Node.js 22, Express.js, TypeScript, Prisma ORM 6, Zod, JWT, bcryptjs, Cookie-Parser |
+| **Database** | PostgreSQL 18 with relational constraints and atomic row updates |
+| **Testing** | Vitest, Supertest, real PostgreSQL concurrency test suite |
+
+---
+
+## Project Structure
+
+```
+snack-overflow/
+├── frontend/             # Next.js 15 App Router web client
+│   ├── src/
+│   │   ├── app/          # Routes: login, dashboard, snacks, admin, activities
+│   │   ├── components/   # UI components, layout shell, modals, cards
+│   │   ├── hooks/        # React Query and form hooks
+│   │   ├── services/     # Centralized API service modules
+│   │   └── lib/          # Utilities, dynamic status calculations
+│   └── package.json
+├── backend/              # Express.js REST API
+│   ├── src/
+│   │   ├── config/       # Environment and database configuration
+│   │   ├── controllers/  # Request handlers and response envelopes
+│   │   ├── middleware/   # Authentication, RBAC, error handling, CSRF
+│   │   ├── routes/       # API routes
+│   │   ├── services/     # Business logic and atomic concurrency transactions
+│   │   ├── utils/        # Status calculations, error classes
+│   │   └── validators/   # Zod request validators
+│   ├── prisma/           # Schema, versioned migrations, idempotent seed
+│   ├── tests/            # Supertest API & PostgreSQL concurrency tests
+│   └── package.json
+├── docs/                 # Engineering documentation
+│   ├── ARCHITECTURE.md   # System architecture and concurrency design
+│   ├── DATABASE.md       # ERD, constraints, schema specification
+│   ├── API_SPEC.md       # Full REST API documentation
+│   └── DESIGN_SYSTEM.md  # Design tokens, typography, component guidelines
+├── .env.example          # Safe template for environment configuration
+└── README.md
+```
+
+---
+
+## Seed Credentials (Demo Accounts)
+
+| Role | Email | Password | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin@example.com` | `Admin1234!` | Full inventory CRUD, restock, view activity audit logs |
+| **Member** | `member@example.com` | `Member1234!` | View catalog, consume snacks, vote/unvote |
+
+---
+
+## Getting Started
+
+### Prerequisites
+- **Node.js**: `v22.x` or higher
+- **npm**: `10.x` or higher
+- **PostgreSQL**: `v18.x` running on port `5432`
+
+### Setup Instructions
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/SanjayKumarHM13/snack_overflow.git
+   cd snack_overflow
+   ```
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Run migrations and seed database:
+   ```bash
+   npm --prefix backend run prisma:migrate
+   npm --prefix backend run prisma:seed
+   ```
+5. Start development servers:
+   ```bash
+   # In terminal 1 (Backend API on port 4000)
+   npm --prefix backend run dev
+
+   # In terminal 2 (Frontend on port 3000)
+   npm --prefix frontend run dev
+   ```
+
+---
+
+## Concurrency Guarantees
+
+Snack Overflow's core engineering achievement is safe, high-concurrency inventory decrementing without overconsumption:
+```sql
+UPDATE "snacks"
+SET "quantity" = "quantity" - $1, "updatedAt" = NOW()
+WHERE "id" = $2::uuid AND "quantity" >= $1
+RETURNING *;
+```
+Combined with an atomic transaction that records the activity log, this guarantees that inventory updates are race-free, durable, and strictly positive.

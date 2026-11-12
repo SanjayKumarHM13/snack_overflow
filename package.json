@@ -1,0 +1,38 @@
+{
+  "name": "snack-overflow-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Snack Overflow - Office Pantry and Snack Inventory Management System",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "npm run dev:backend",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "lint:backend": "npm --prefix backend run lint",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "typecheck:backend": "npm --prefix backend run typecheck",
+    "typecheck:frontend": "npm --prefix frontend run typecheck",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "test:backend": "npm --prefix backend run test",
+    "test": "npm run test:backend"
+  },
+  "keywords": [
+    "snack-overflow",
+    "inventory",
+    "pantry",
+    "concurrency",
+    "nextjs",
+    "express",
+    "prisma",
+    "postgresql"
+  ],
+  "author": "Sanjay Kumar",
+  "license": "UNLICENSED"
+}

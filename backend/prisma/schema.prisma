@@ -1,0 +1,93 @@
+// Prisma schema for Snack Overflow
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum SnackCategory {
+  SWEET
+  SAVOURY
+  DRINK
+  HEALTHY_ISH
+}
+
+enum ActivityAction {
+  CONSUMED
+  RESTOCKED
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String     @db.VarChar(100)
+  email        String     @unique @db.VarChar(255)
+  passwordHash String     @db.VarChar(255)
+  role         Role       @default(MEMBER)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(6)
+
+  votes        Vote[]
+  activities   Activity[]
+
+  @@map("users")
+}
+
+model Snack {
+  id                String        @id @default(uuid()) @db.Uuid
+  name              String        @unique @db.VarChar(120)
+  category          SnackCategory
+  quantity          Int           @default(0)
+  lowStockThreshold Int           @default(5)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(6)
+
+  votes             Vote[]
+  activities        Activity[]
+
+  @@index([category])
+  @@index([name])
+  @@map("snacks")
+}
+
+model Vote {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  snackId   String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snack     Snack    @relation(fields: [snackId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, snackId], name: "unique_user_snack_vote")
+  @@index([snackId])
+  @@index([userId])
+  @@map("votes")
+}
+
+model Activity {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  snackId   String?        @db.Uuid
+  snackName String         @db.VarChar(120)
+  action    ActivityAction
+  amount    Int
+  createdAt DateTime       @default(now()) @db.Timestamptz(6)
+
+  // Enforce audit integrity: Users with historical activity cannot be deleted
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // Preserves audit logs if a snack is deleted
+  snack     Snack?         @relation(fields: [snackId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([snackId])
+  @@map("activities")
+}
