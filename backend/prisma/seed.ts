@@ -16,7 +16,6 @@ async function main(): Promise<void> {
     update: {
       name: 'Admin User',
       role: Role.ADMIN,
-      passwordHash: adminPasswordHash,
     },
     create: {
       name: 'Admin User',
@@ -31,7 +30,6 @@ async function main(): Promise<void> {
     update: {
       name: 'Member User',
       role: Role.MEMBER,
-      passwordHash: memberPasswordHash,
     },
     create: {
       name: 'Member User',
@@ -64,8 +62,8 @@ async function main(): Promise<void> {
       where: { name: item.name },
       update: {
         category: item.category,
-        quantity: item.quantity,
         lowStockThreshold: item.lowStockThreshold,
+        // Preserve existing inventory quantity on repeated seeds
       },
       create: {
         name: item.name,
