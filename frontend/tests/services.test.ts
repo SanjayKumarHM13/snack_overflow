@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ApiClientError, setCsrfToken, getCsrfToken } from '../src/services/api';
 import { snackService } from '../src/services/snack.service';
 import { activityService } from '../src/services/activity.service';
+import { authService } from '../src/services/auth.service';
 
 describe('Frontend Services & API Client Tests', () => {
   beforeEach(() => {
@@ -62,6 +63,15 @@ describe('Frontend Services & API Client Tests', () => {
     it('should expose all required activityService operations', () => {
       expect(typeof activityService.listActivities).toBe('function');
       expect(typeof activityService.listMyActivities).toBe('function');
+    });
+
+    it('should expose all required authService operations including register and status', () => {
+      expect(typeof authService.login).toBe('function');
+      expect(typeof authService.logout).toBe('function');
+      expect(typeof authService.getMe).toBe('function');
+      expect(typeof authService.fetchCsrfToken).toBe('function');
+      expect(typeof authService.register).toBe('function');
+      expect(typeof authService.getRegistrationStatus).toBe('function');
     });
   });
 });

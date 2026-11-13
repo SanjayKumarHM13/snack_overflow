@@ -14,4 +14,5 @@ export const config = {
   cookieName: process.env.COOKIE_NAME || 'snack_session',
   csrfCookieName: 'snack_csrf',
   sessionMaxAgeMs: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+  enableMemberRegistration: process.env.ENABLE_MEMBER_REGISTRATION !== 'false',
 };

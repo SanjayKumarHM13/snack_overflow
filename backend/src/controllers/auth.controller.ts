@@ -111,6 +111,35 @@ export class AuthController {
       next(error);
     }
   }
+
+  /**
+   * Registers a new Member account (Public).
+   */
+  async register(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { name, email, password } = req.body;
+      const user = await authService.register(name, email, password);
+
+      res.status(201).json({
+        message: 'Account created successfully. You can now sign in.',
+        user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Checks whether public registration is open or disabled.
+   */
+  async getRegistrationStatus(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const enabled = authService.isRegistrationEnabled();
+      res.status(200).json({ registrationEnabled: enabled });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const authController = new AuthController();

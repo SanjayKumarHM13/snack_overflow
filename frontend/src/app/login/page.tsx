@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
-import { Lock, Eye, EyeOff, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
+import { Lock, Eye, EyeOff, ShieldAlert, Sparkles, UserCheck, CheckCircle2 } from 'lucide-react';
 
 export default function LoginPage() {
   const { user, login, isLoading: authLoading } = useAuth();
@@ -19,6 +20,16 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('registered') === 'true') {
+        setSuccessMessage('Account created successfully! Please sign in with your new credentials.');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -92,6 +103,14 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Success Alert */}
+          {successMessage && (
+            <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 flex items-start gap-2.5 text-xs text-emerald-900 dark:text-emerald-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="flex-1 font-medium">{successMessage}</div>
+            </div>
+          )}
+
           {/* Error Alert */}
           {errorMessage && (
             <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-start gap-2.5 text-xs text-rose-900 dark:text-rose-200">
@@ -147,6 +166,19 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
+
+          {/* Create Account Link */}
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Don&apos;t have an account?{' '}
+              <Link
+                href="/auth/register"
+                className="font-bold text-coral hover:text-coral-dark dark:hover:text-coral-light underline decoration-coral/30 hover:decoration-coral transition-colors"
+              >
+                Create Account
+              </Link>
+            </p>
+          </div>
 
           {/* Demo Account Quick-Fill Section */}
           <div className="mt-8 pt-6 border-t border-pantry-border">

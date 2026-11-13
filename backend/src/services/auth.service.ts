@@ -2,8 +2,8 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../config/database.js';
 import { config } from '../config/env.js';
 import { generateRawToken, hashToken } from '../utils/session.js';
-import { UnauthorizedError } from '../utils/errors.js';
-import { Role } from '@prisma/client';
+import { UnauthorizedError, ForbiddenError, ConflictError } from '../utils/errors.js';
+import { Role, Prisma } from '@prisma/client';
 
 export interface AuthResult {
   user: {
@@ -82,6 +82,80 @@ export class AuthService {
         revokedAt: new Date(),
       },
     });
+  }
+
+  /**
+   * Registers a new Member account in PostgreSQL.
+   * - Enforces server-assigned MEMBER role.
+   * - Hashes password using bcrypt (cost 12).
+   * - Protects against concurrent duplicates via PostgreSQL unique constraint.
+   * - Never returns passwordHash.
+   */
+  async register(
+    name: string,
+    email: string,
+    passwordPlain: string
+  ): Promise<{
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    createdAt: Date;
+  }> {
+    if (!config.enableMemberRegistration) {
+      throw new ForbiddenError(
+        'Member registration is currently disabled by administrator policy.',
+        'REGISTRATION_DISABLED'
+      );
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check existing email
+    const existing = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (existing) {
+      throw new ConflictError('A user with this email address already exists.', 'EMAIL_ALREADY_EXISTS');
+    }
+
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(passwordPlain, saltRounds);
+
+    try {
+      const user = await prisma.user.create({
+        data: {
+          name: name.trim(),
+          email: normalizedEmail,
+          passwordHash,
+          role: Role.MEMBER, // Exclusively assigned on the server
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          createdAt: true,
+        },
+      });
+
+      return user;
+    } catch (err: any) {
+      if (
+        (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') ||
+        ('code' in err && err.code === '23505')
+      ) {
+        throw new ConflictError('A user with this email address already exists.', 'EMAIL_ALREADY_EXISTS');
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Returns whether public member registration is currently enabled.
+   */
+  isRegistrationEnabled(): boolean {
+    return config.enableMemberRegistration;
   }
 
   /**
