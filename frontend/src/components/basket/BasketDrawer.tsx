@@ -37,11 +37,26 @@ export function BasketDrawer() {
   const queryClient = useQueryClient();
   const [isConsuming, setIsConsuming] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `basket-${Date.now()}`
+  );
+
+  // Whenever basket contents change, generate a new idempotency key for the new logical basket
+  const prevItemsHash = React.useRef(JSON.stringify(items));
+  React.useEffect(() => {
+    const currentHash = JSON.stringify(items);
+    if (currentHash !== prevItemsHash.current) {
+      prevItemsHash.current = currentHash;
+      setIdempotencyKey(
+        typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `basket-${Date.now()}`
+      );
+    }
+  }, [items]);
 
   if (!isDrawerOpen) return null;
 
   const handleConfirmConsumption = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || isConsuming) return;
     setErrorMessage('');
     setIsConsuming(true);
 
@@ -51,10 +66,15 @@ export function BasketDrawer() {
         amount: i.amount,
       }));
 
-      const res = await snackService.consumeBasket(payload);
+      // Pass the current attempt's idempotencyKey (reused on network retry, renewed on fresh basket)
+      const res = await snackService.consumeBasket(payload, idempotencyKey);
       toast.success(res.message || `Successfully consumed ${totalPackets} packet(s)!`);
       clearBasket();
       setIsDrawerOpen(false);
+      // Renew key for future baskets
+      setIdempotencyKey(
+        typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `basket-${Date.now()}`
+      );
 
       // Invalidate queries so inventory & history refresh
       await Promise.all([

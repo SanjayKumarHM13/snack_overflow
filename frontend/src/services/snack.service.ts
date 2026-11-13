@@ -95,22 +95,40 @@ export const snackService = {
     });
   },
 
-  async consumeBasket(items: BasketConsumeItemDto[]): Promise<BasketConsumeResponse> {
+  async consumeBasket(items: BasketConsumeItemDto[], idempotencyKey?: string): Promise<BasketConsumeResponse> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    }
     return apiFetch<BasketConsumeResponse>('/snacks/consume-basket', {
       method: 'POST',
+      headers,
       body: JSON.stringify({ items }),
     });
   },
 
-  async consumeSnack(id: string, amount = 1): Promise<{ snack: Snack; consumedAmount: number }> {
+  async consumeSnack(
+    id: string,
+    amount = 1,
+    idempotencyKey?: string
+  ): Promise<{ snack: Snack; consumedAmount: number }> {
+    const headers: Record<string, string> = {};
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    }
     return apiFetch<{ message: string; snack: Snack; consumedAmount: number }>(`/snacks/${id}/consume`, {
       method: 'POST',
+      headers,
       body: JSON.stringify({ amount }),
     });
   },
 
-  async consume(id: string, amount = 1): Promise<{ snack: Snack; consumedAmount: number }> {
-    return this.consumeSnack(id, amount);
+  async consume(
+    id: string,
+    amount = 1,
+    idempotencyKey?: string
+  ): Promise<{ snack: Snack; consumedAmount: number }> {
+    return this.consumeSnack(id, amount, idempotencyKey);
   },
 
   async restockSnack(id: string, amount: number): Promise<{ snack: Snack; restockedAmount: number }> {

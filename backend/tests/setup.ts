@@ -37,7 +37,7 @@ export async function seedTestDatabase(): Promise<{ adminToken: string; memberTo
   await verifyTestDatabaseSafety();
 
   // Clean test tables in dependency order
-  await testPrisma.$executeRawUnsafe(`TRUNCATE TABLE "activities", "votes", "sessions", "snacks", "users" CASCADE;`);
+  await testPrisma.$executeRawUnsafe(`TRUNCATE TABLE "idempotency_keys", "activities", "votes", "sessions", "snacks", "users" CASCADE;`);
 
   const saltRounds = 12;
   const adminPasswordHash = await bcrypt.hash('Admin1234!', saltRounds);

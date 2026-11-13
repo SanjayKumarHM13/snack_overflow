@@ -14,7 +14,8 @@ export function createApp(): Express {
       origin: config.frontendUrl,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With', 'Idempotency-Key'],
+      exposedHeaders: ['Idempotency-Key', 'Idempotency-Replayed'],
     })
   );
 

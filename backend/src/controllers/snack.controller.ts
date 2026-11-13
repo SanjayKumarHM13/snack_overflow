@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { snackService } from '../services/snack.service.js';
 import { voteService } from '../services/vote.service.js';
 import { summaryService } from '../services/summary.service.js';
+import { idempotencyService } from '../services/idempotency.service.js';
 
 export class SnackController {
   async listSnacks(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -52,12 +53,30 @@ export class SnackController {
   async consumeSnack(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { amount } = req.body;
-      const result = await snackService.consumeSnack(req.params.id, amount, req.user!.id);
-      res.status(200).json({
-        message: 'Snack consumed successfully.',
-        snack: result.snack,
-        consumedAmount: result.consumedAmount,
-      });
+      const idempotencyKey = (req.headers['idempotency-key'] as string) || undefined;
+      const snackId = req.params.id;
+      const userId = req.user!.id;
+
+      const result = await idempotencyService.executeIdempotent(
+        idempotencyKey,
+        userId,
+        'CONSUME_SNACK',
+        { snackId, amount },
+        async () => {
+          const consumeResult = await snackService.consumeSnack(snackId, amount, userId);
+          return {
+            statusCode: 200,
+            data: {
+              message: 'Snack consumed successfully.',
+              snack: consumeResult.snack,
+              consumedAmount: consumeResult.consumedAmount,
+            },
+          };
+        }
+      );
+
+      res.setHeader('Idempotency-Replayed', result.replayed ? 'true' : 'false');
+      res.status(result.statusCode).json(result.data);
     } catch (error) {
       next(error);
     }
@@ -66,8 +85,25 @@ export class SnackController {
   async consumeBasket(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { items } = req.body;
-      const result = await snackService.consumeBasket(items, req.user!.id);
-      res.status(200).json(result);
+      const idempotencyKey = (req.headers['idempotency-key'] as string) || undefined;
+      const userId = req.user!.id;
+
+      const result = await idempotencyService.executeIdempotent(
+        idempotencyKey,
+        userId,
+        'CONSUME_BASKET',
+        { items },
+        async () => {
+          const basketResult = await snackService.consumeBasket(items, userId);
+          return {
+            statusCode: 200,
+            data: basketResult,
+          };
+        }
+      );
+
+      res.setHeader('Idempotency-Replayed', result.replayed ? 'true' : 'false');
+      res.status(result.statusCode).json(result.data);
     } catch (error) {
       next(error);
     }

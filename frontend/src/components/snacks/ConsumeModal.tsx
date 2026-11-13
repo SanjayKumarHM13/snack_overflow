@@ -10,7 +10,7 @@ interface ConsumeModalProps {
   isOpen: boolean;
   onClose: () => void;
   snack: Snack | null;
-  onConfirm: (snack: Snack, amount: number) => Promise<void>;
+  onConfirm: (snack: Snack, amount: number, idempotencyKey?: string) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -23,13 +23,17 @@ export function ConsumeModal({
 }: ConsumeModalProps) {
   const [amount, setAmount] = useState<number>(1);
   const [error, setError] = useState<string>('');
+  const [idempotencyKey, setIdempotencyKey] = useState<string>('');
 
   useEffect(() => {
-    if (snack) {
+    if (snack && isOpen) {
       setAmount(1);
       setError('');
+      setIdempotencyKey(
+        typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `consume-${Date.now()}`
+      );
     }
-  }, [snack]);
+  }, [snack, isOpen]);
 
   if (!snack) return null;
 
@@ -44,7 +48,7 @@ export function ConsumeModal({
       return;
     }
     setError('');
-    await onConfirm(snack, amount);
+    await onConfirm(snack, amount, idempotencyKey);
   };
 
   const projectedRemaining = Math.max(0, snack.quantity - amount);
