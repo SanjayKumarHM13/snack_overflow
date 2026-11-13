@@ -3,6 +3,7 @@ import { snackService } from '../services/snack.service.js';
 import { voteService } from '../services/vote.service.js';
 import { summaryService } from '../services/summary.service.js';
 import { idempotencyService } from '../services/idempotency.service.js';
+import { sseService } from '../services/sse.service.js';
 
 export class SnackController {
   async listSnacks(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -26,6 +27,11 @@ export class SnackController {
   async createSnack(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const snack = await snackService.createSnack(req.body);
+      sseService.broadcast({
+        type: 'SNACK_CREATED',
+        snackId: snack.id,
+        timestamp: new Date().toISOString(),
+      });
       res.status(201).json(snack);
     } catch (error) {
       next(error);
@@ -35,6 +41,11 @@ export class SnackController {
   async updateSnack(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const snack = await snackService.updateSnack(req.params.id, req.body);
+      sseService.broadcast({
+        type: 'SNACK_UPDATED',
+        snackId: snack.id,
+        timestamp: new Date().toISOString(),
+      });
       res.status(200).json(snack);
     } catch (error) {
       next(error);
@@ -44,6 +55,11 @@ export class SnackController {
   async deleteSnack(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       await snackService.deleteSnack(req.params.id);
+      sseService.broadcast({
+        type: 'SNACK_DELETED',
+        snackId: req.params.id,
+        timestamp: new Date().toISOString(),
+      });
       res.status(200).json({ message: 'Snack deleted successfully.' });
     } catch (error) {
       next(error);
@@ -75,6 +91,15 @@ export class SnackController {
         }
       );
 
+      // Broadcast real-time inventory event only on actual execution (not cache replay)
+      if (!result.replayed) {
+        sseService.broadcast({
+          type: 'SNACK_CONSUMED',
+          snackId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       res.setHeader('Idempotency-Replayed', result.replayed ? 'true' : 'false');
       res.status(result.statusCode).json(result.data);
     } catch (error) {
@@ -102,6 +127,15 @@ export class SnackController {
         }
       );
 
+      // Broadcast real-time inventory event only on actual execution (not cache replay)
+      if (!result.replayed) {
+        sseService.broadcast({
+          type: 'BASKET_CONSUMED',
+          snackIds: items.map((i: any) => i.snackId),
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       res.setHeader('Idempotency-Replayed', result.replayed ? 'true' : 'false');
       res.status(result.statusCode).json(result.data);
     } catch (error) {
@@ -123,6 +157,11 @@ export class SnackController {
     try {
       const { amount } = req.body;
       const result = await snackService.restockSnack(req.params.id, amount, req.user!.id);
+      sseService.broadcast({
+        type: 'SNACK_RESTOCKED',
+        snackId: req.params.id,
+        timestamp: new Date().toISOString(),
+      });
       res.status(200).json({
         message: 'Snack restocked successfully.',
         snack: result.snack,
@@ -136,6 +175,11 @@ export class SnackController {
   async vote(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await voteService.castVote(req.params.id, req.user!.id);
+      sseService.broadcast({
+        type: 'VOTE_ADDED',
+        snackId: req.params.id,
+        timestamp: new Date().toISOString(),
+      });
       res.status(201).json({
         message: 'Vote recorded successfully.',
         voteCount: result.voteCount,
@@ -149,6 +193,11 @@ export class SnackController {
   async unvote(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await voteService.removeVote(req.params.id, req.user!.id);
+      sseService.broadcast({
+        type: 'VOTE_REMOVED',
+        snackId: req.params.id,
+        timestamp: new Date().toISOString(),
+      });
       res.status(200).json({
         message: 'Vote removed successfully.',
         voteCount: result.voteCount,

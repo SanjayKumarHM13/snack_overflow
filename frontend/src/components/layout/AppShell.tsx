@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BasketDrawer } from '../basket/BasketDrawer';
+import { useRealtimeEvents } from '../../hooks/useRealtimeEvents';
 import { Loader2 } from 'lucide-react';
 
 interface AppShellProps {
@@ -21,6 +22,9 @@ export function AppShell({
 }: AppShellProps) {
   const { user, isLoading, isAdmin } = useAuth();
   const router = useRouter();
+
+  // Establish persistent real-time SSE listener stream when authenticated
+  useRealtimeEvents();
 
   useEffect(() => {
     if (!isLoading && !user) {

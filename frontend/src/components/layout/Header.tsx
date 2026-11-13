@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { useBasket } from '../../context/BasketContext';
+import { useRealtimeEvents } from '../../hooks/useRealtimeEvents';
 import { RoleBadge } from '../ui/Badge';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import {
@@ -27,6 +28,7 @@ export function Header() {
   const pathname = usePathname();
   const { user, isAdmin, logout } = useAuth();
   const { totalPackets, toggleDrawer } = useBasket();
+  const { isConnected } = useRealtimeEvents();
 
   const adminNavItems = [
     { name: 'Pantry Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -77,6 +79,26 @@ export function Header() {
                 </span>
               )}
             </button>
+          )}
+
+          {/* Real-time Live Sync Indicator */}
+          {user && (
+            <div
+              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border border-pantry-border bg-pantry-surface/80"
+              title={isConnected ? 'Real-time live updates connected' : 'Connecting to real-time live updates...'}
+            >
+              <span
+                className={cn(
+                  'w-2 h-2 rounded-full',
+                  isConnected
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-amber-400'
+                )}
+              />
+              <span className="text-gray-500 dark:text-gray-400">
+                {isConnected ? 'Live' : 'Syncing'}
+              </span>
+            </div>
           )}
 
           {/* Global Theme Toggle */}
