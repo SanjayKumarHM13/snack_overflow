@@ -92,7 +92,8 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: "Stage C: Run backend test suite"
-        run: npm run test:backend
+        working-directory: backend
+        run: npm run test -- --no-file-parallelism --maxWorkers=1
 
       # =================================================================
       # Stage D: Frontend tests
