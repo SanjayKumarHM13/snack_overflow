@@ -69,7 +69,8 @@ jobs:
       # Stage B: Code quality checks (Linting & TypeScript Typechecking)
       # =================================================================
       - name: "Stage B: Generate Prisma Client for TypeScript definitions"
-        run: npx prisma generate --schema=backend/prisma/schema.prisma
+        working-directory: backend
+        run: npx prisma generate
 
       - name: "Stage B: Run backend ESLint"
         run: npm run lint:backend
@@ -87,7 +88,8 @@ jobs:
       # Stage C: Backend database integration and tests
       # =================================================================
       - name: "Stage C: Apply Prisma migrations to CI database"
-        run: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
+        working-directory: backend
+        run: npx prisma migrate deploy
 
       - name: "Stage C: Run backend test suite"
         run: npm run test:backend
