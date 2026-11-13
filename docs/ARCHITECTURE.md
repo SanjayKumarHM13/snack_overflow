@@ -152,3 +152,45 @@ State-changing operations (`POST`, `PUT`, `PATCH`, `DELETE`) are protected by a 
   - `text-pantry-text`: `#0F172A` (Light) / `#F8FAFC` (Dark)
   - `border-pantry-border`: `#E5E3D8` (Light) / `#334155` (Dark)
 - Managed via `ThemeContext` supporting `light`, `dark`, and `system` preferences with `localStorage` persistence and zero-flash layout hydration script.
+
+---
+
+## 7. Bonus Features Architecture & Real-Time Sync
+
+### A. Member Self-Registration & Policy Configuration
+- **Public Registration Endpoint:** `POST /api/auth/register`.
+- **Authentication Lifecycle:** Registration creates the Member record in PostgreSQL but does *not* automatically create a session or set session cookies. Upon receiving `201 Created`, the frontend redirects the user to `/login?registered=true` with a success banner prompting explicit sign-in.
+- **Server-Enforced Role Assignment:** The `MEMBER` role is authoritatively assigned on the server. Client attempts to pass a custom role (e.g., `role: "ADMIN"`) are stripped or ignored.
+- **Configurable Deployment Policy:** Controlled via `ENABLE_MEMBER_REGISTRATION` environment flag. Restricted office pantry deployments can disable public sign-up without recompiling code, returning `403 REGISTRATION_DISABLED`.
+- **Abuse Prevention:** Rate-limited using an in-memory sliding window limiter (5 registration attempts per 15 minutes per IP address).
+- **Concurrency Protection:** Relies on PostgreSQL's unique index `users_email_key`. Simultaneous duplicate registrations are caught and mapped cleanly to `409 EMAIL_ALREADY_EXISTS`.
+
+### B. Database-Backed Idempotency Engine
+- **Target Operations:** `POST /api/snacks/:id/consume` and `POST /api/snacks/consume-basket`.
+- **Request Identification:** Identified by the client-supplied `Idempotency-Key` header (UUIDv4).
+- **Canonical Request Fingerprinting:**
+  - The backend sorts JSON keys recursively and hashes `OPERATION:CANONICAL_JSON` using SHA-256 (`requestHash`).
+  - If the same key is reused with an altered payload, the server rejects with `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
+- **Concurrency & State Transition:**
+  - Uses `(userId, key)` composite unique constraint in `idempotency_keys`.
+  - Initial request reserves slot with `status: "PROCESSING"`.
+  - Concurrent requests with identical key wait on in-flight resolution (polling up to 4s) without re-executing inventory decrements.
+  - Upon successful commit, transitions to `status: "COMPLETED"` storing HTTP status and JSON response body.
+  - Retried requests replay the cached response immediately (`Idempotency-Replayed: true`).
+- **Failure Coordination:**
+  - If inventory deduction fails (e.g. `INSUFFICIENT_STOCK`), the reservation is pruned, allowing corrected retries with the same key.
+
+### C. Server-Sent Events (SSE) Real-Time Architecture
+- **Event Streaming Endpoint:** `GET /api/events`.
+- **Transport:** HTTP-based text/event-stream with `withCredentials: true` (HttpOnly session cookie validation).
+- **Payload Sanitization & Privacy:**
+  - Broadcasts small event envelopes: `{ "type": "EVENT_TYPE", "snackId": "...", "timestamp": "..." }`.
+  - Strict privacy isolation: Zero personal consumption logs, user names, or tokens are broadcast.
+- **Transactional Invariance:** Events are dispatched strictly *after* successful database commits. Rolled back transactions emit zero events.
+- **Client Cache Synchronization:**
+  - Consumed by `useRealtimeEvents` hook in the Next.js `AppShell`.
+  - Automatically invalidates TanStack Query keys (`['snacks']`, `['summary']`, `['favourites']`, etc.).
+  - Preserves existing optimistic states and eliminates full-page reloads.
+- **Multi-Instance Scaling Architecture:**
+  - Currently runs in-process via Node.js Event Manager.
+  - For multi-instance clustered deployments (Kubernetes / load-balanced containers), the event bus seamlessly scales by swapping the in-memory emitter with a distributed message broker (e.g., **Redis Pub/Sub** or **PostgreSQL LISTEN / NOTIFY**).

@@ -37,6 +37,47 @@
 
 ### A. Authentication & Session Management
 
+#### `GET /api/auth/register-status`
+Returns whether public member sign-up is open or restricted by administrator configuration.
+- **Access:** Public
+- **Response (200 OK):**
+  ```json
+  {
+    "registrationEnabled": true
+  }
+  ```
+
+#### `POST /api/auth/register`
+Creates a new Member account in PostgreSQL.
+- **Access:** Public (Rate-limited: 5 attempts per 15 min per IP)
+- **Headers:** `X-CSRF-Token: <token>`
+- **Request Body:**
+  ```json
+  {
+    "name": "Jane Doe",
+    "email": "jane@company.com",
+    "password": "Password123!",
+    "confirmPassword": "Password123!"
+  }
+  ```
+- **Response (201 Created):**
+  ```json
+  {
+    "message": "Account created successfully. You can now sign in.",
+    "user": {
+      "id": "e4b47f0e-3c58-45e6-9b57-d65fa09e3e7f",
+      "name": "Jane Doe",
+      "email": "jane@company.com",
+      "role": "MEMBER",
+      "createdAt": "2026-11-13T10:00:00.000Z"
+    }
+  }
+  ```
+- **Session Behavior:** Does not issue a session cookie or auto-login. The client redirects to `/login?registered=true` where the user authenticates explicitly.
+- **Error (400 Bad Request):** Validation failure or password complexity not met.
+- **Error (403 Forbidden):** Registration disabled by admin policy (`REGISTRATION_DISABLED`).
+- **Error (409 Conflict):** User with this email already exists (`EMAIL_ALREADY_EXISTS`).
+
 #### `GET /api/auth/csrf-token`
 Retrieves a cryptographically signed CSRF token required for all subsequent state-changing mutations (`POST`, `PUT`, `PATCH`, `DELETE`).
 - **Access:** Public / Authenticated
@@ -186,7 +227,10 @@ Deletes a snack item. Preserves historical activity entries.
 
 #### `POST /api/snacks/:id/consume`
 Consumes packets of a snack using atomic database row-level locking.
-- **Access:** Authenticated (Member / Admin)
+- **Access:** Authenticated (Member Only)
+- **Headers:** 
+  - `X-CSRF-Token: <token>`
+  - `Idempotency-Key: <unique-uuid>` *(Optional, recommended)* — ensures request is executed exactly once across retries.
 - **Request Body:**
   ```json
   {
@@ -194,6 +238,7 @@ Consumes packets of a snack using atomic database row-level locking.
   }
   ```
 - **Response (200 OK):**
+  - **Headers:** `Idempotency-Replayed: true | false`
   ```json
   {
     "message": "Snack consumed successfully",
@@ -202,22 +247,19 @@ Consumes packets of a snack using atomic database row-level locking.
       "name": "Oreo",
       "quantity": 2,
       "status": "RUNNING_LOW"
-    }
+    },
+    "consumedAmount": 1
   }
   ```
 - **Error (409 Conflict):**
-  ```json
-  {
-    "error": {
-      "code": "INSUFFICIENT_STOCK",
-      "message": "Someone beat you to the last packet! Please refresh the inventory."
-    }
-  }
-  ```
+  - Insufficient stock: `INSUFFICIENT_STOCK`
+  - Idempotency key payload mismatch: `IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`
+  - Concurrent request with same key in progress: `IDEMPOTENCY_KEY_IN_PROGRESS`
 
 #### `POST /api/snacks/:id/restock`
 Adds packets to a snack and logs a restocking activity.
 - **Access:** **Admin Only**
+- **Headers:** `X-CSRF-Token: <token>`
 - **Request Body:**
   ```json
   {
@@ -233,14 +275,17 @@ Adds packets to a snack and logs a restocking activity.
       "name": "Oreo",
       "quantity": 17,
       "status": "STOCKED"
-    }
+    },
+    "restockedAmount": 15
   }
   ```
 
 #### `POST /api/snacks/consume-basket`
 Atomically consumes multiple different snacks and quantities in a single all-or-nothing transaction.
 - **Access:** **Member Only**
-- **Headers:** `X-CSRF-Token: <token>`
+- **Headers:**
+  - `X-CSRF-Token: <token>`
+  - `Idempotency-Key: <unique-uuid>` *(Optional, recommended)* — coordinates transaction outcome across retries.
 - **Request Body:**
   ```json
   {
@@ -248,6 +293,55 @@ Atomically consumes multiple different snacks and quantities in a single all-or-
       { "snackId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "amount": 2 },
       { "snackId": "b2c3d4e5-f6a7-8901-bcde-f12345678901", "amount": 1 }
     ]
+  }
+  ```
+- **Response (200 OK):**
+  - **Headers:** `Idempotency-Replayed: true | false`
+  ```json
+  {
+    "message": "Successfully consumed 3 packet(s) across 2 snack variety(ies).",
+    "totalPackets": 3,
+    "items": [
+      {
+        "snackId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "snackName": "Oreo",
+        "amount": 2,
+        "remainingQuantity": 2,
+        "status": "RUNNING_LOW"
+      }
+    ]
+  }
+  ```
+
+---
+
+### D. Real-Time Server-Sent Events (SSE)
+
+#### `GET /api/events`
+Establishes a persistent, authenticated Server-Sent Events stream for real-time inventory and voting notifications.
+- **Access:** Authenticated (Cookie Session or Bearer Token)
+- **Response Headers:**
+  - `Content-Type: text/event-stream`
+  - `Cache-Control: no-cache, no-transform`
+  - `Connection: keep-alive`
+  - `X-Accel-Buffering: no`
+- **Heartbeat:** Comment ping (`: heartbeat <timestamp>\n\n`) emitted every 20 seconds.
+- **Event Stream Format:**
+  ```
+  event: <EventType>
+  data: {"type":"<EventType>","snackId":"<id>","timestamp":"<iso-timestamp>"}
+  ```
+- **Supported Event Types:**
+  - `CONNECTED`: Initial stream establishment confirmation.
+  - `SNACK_CREATED`: A new snack was added to the pantry.
+  - `SNACK_UPDATED`: A snack's name, category, or reorder threshold was changed.
+  - `SNACK_DELETED`: A snack was removed from the pantry.
+  - `SNACK_RESTOCKED`: An admin restocked snack packets.
+  - `SNACK_CONSUMED`: A member grabbed a snack packet.
+  - `BASKET_CONSUMED`: A member consumed a multi-item basket.
+  - `VOTE_ADDED`: A member voted for a snack.
+  - `VOTE_REMOVED`: A member withdrew a vote.
+- **Security & Data Isolation:** Events only contain sanitized identifiers and timestamps. User IDs, session tokens, and private consumption logs are strictly excluded from broadcast payloads.
   }
   ```
 - **Response (200 OK):**

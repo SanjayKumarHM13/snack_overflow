@@ -115,6 +115,21 @@ Immutable historical audit trail of consumption and restocking operations.
 - `amount`: `INTEGER` — positive quantity transferred.
 - `createdAt`: `TIMESTAMPTZ(6)`.
 
+### E. Idempotency Key (`idempotency_keys`)
+Database-backed ledger for ensuring single and multi-item consumption operations cannot be executed multiple times.
+- `id`: `UUID` primary key.
+- `key`: `VARCHAR(255)` — client-supplied unique attempt identifier.
+- `userId`: `UUID` foreign key referencing `users(id)` with `ON DELETE CASCADE`.
+- `operation`: `VARCHAR(100)` — logical operation (e.g., `CONSUME_SNACK`, `CONSUME_BASKET`).
+- `requestHash`: `VARCHAR(64)` — deterministic SHA-256 digest of canonical operation + sorted payload.
+- `statusCode`: `INTEGER` nullable — captured HTTP response status code upon completion.
+- `responseBody`: `TEXT` nullable — cached JSON payload replayed on duplicate requests.
+- `status`: `VARCHAR(20)` — state machine: `PROCESSING`, `COMPLETED`, `FAILED`.
+- `createdAt`: `TIMESTAMPTZ(6)`.
+- `updatedAt`: `TIMESTAMPTZ(6)`.
+- `expiresAt`: `TIMESTAMPTZ(6)` — 24-hour expiration threshold for automatic cleanup.
+- **Constraint:** Composite unique constraint on `("userId", "key")`. Prevents concurrent duplicate executions for the same user while permitting distinct users to use independent key spaces.
+
 ---
 
 ## 4. Database Constraints & Rules
@@ -122,12 +137,14 @@ Immutable historical audit trail of consumption and restocking operations.
 1. **Email Uniqueness:** `UNIQUE ("email")` on `users`.
 2. **Snack Name Uniqueness:** `UNIQUE ("name")` on `snacks`.
 3. **Voting Uniqueness:** `UNIQUE ("userId", "snackId")` on `votes`.
-4. **Non-negative Stock CHECK:** `CHECK (quantity >= 0)` on `snacks`.
-5. **Non-negative Threshold CHECK:** `CHECK ("lowStockThreshold" >= 0)` on `snacks`.
-6. **Positive Amount CHECK:** `CHECK (amount > 0)` on `activities`.
-7. **Foreign Key Integrity:**
+4. **Idempotency Key Uniqueness:** `UNIQUE ("userId", "key")` on `idempotency_keys`.
+5. **Non-negative Stock CHECK:** `CHECK (quantity >= 0)` on `snacks`.
+6. **Non-negative Threshold CHECK:** `CHECK ("lowStockThreshold" >= 0)` on `snacks`.
+7. **Positive Amount CHECK:** `CHECK (amount > 0)` on `activities`.
+8. **Foreign Key Integrity:**
    - User deletion with existing activity records is blocked (`RESTRICT`).
    - Snack deletion retains audit history with preserved snack name snapshot (`SET NULL`).
+   - User deletion cascades to sessions, votes, and idempotency keys (`CASCADE`).
 
 ---
 
@@ -146,3 +163,6 @@ Stock status is dynamically computed and never stored in the database:
 - `activities(createdAt DESC)`: Optimizes paginated audit log queries.
 - `activities(userId)`: Speeds up user-specific activity retrieval.
 - `activities(snackId)`: Speeds up snack-specific activity history.
+- `idempotency_keys(userId, key)`: Unique composite index covering user key lookups and concurrent reservation attempts.
+- `idempotency_keys(userId)`: Speeds up per-user idempotency key filtering.
+- `idempotency_keys(expiresAt)`: Speeds up periodic TTL expiration and pruning jobs.

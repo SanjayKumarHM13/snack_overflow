@@ -15,6 +15,9 @@
 ## Key Features
 
 - **Race-Condition-Free Inventory Consumption:** Employs atomic conditional PostgreSQL `UPDATE` statements with row-level locks ensuring that even if 10 users click "Consume" simultaneously on the last 3 items, exactly 3 succeed and 7 receive `409 Conflict`.
+- **Idempotency-Key Protection:** Supports `Idempotency-Key` headers on consumption and basket endpoints to guarantee network retry safety, double-click prevention, and deterministic replay responses (`Idempotency-Replayed: true`).
+- **Real-Time Inventory & Voting Updates:** Authenticated Server-Sent Events (SSE) connection (`GET /api/events`) delivers instant UI synchronization across all open sessions for stock changes, basket operations, catalog edits, and votes without full-page reloads.
+- **Self-Service Member Sign-up:** Dedicated registration portal (`/auth/register`) with interactive password strength indicators, bcrypt cost 12 hashing, server-enforced `MEMBER` role, rate limiting (5 attempts / 15 min), and feature toggle (`ENABLE_MEMBER_REGISTRATION`).
 - **Multi-Snack Transactional Basket:** Members can assemble multiple snack varieties and quantities into a snack basket, atomically consumed in an all-or-nothing PostgreSQL transaction (`POST /api/snacks/consume-basket`).
 - **Strict Role-Based Experience (RBAC):**
   - **Admin:** Insight-driven dashboard (`/dashboard`), full inventory management (`/admin`), and immutable audit trail (`/activities`). Consumption controls are completely removed from both UI and API (`403 MEMBER_ROLE_REQUIRED`).
@@ -45,9 +48,10 @@
 snack-overflow/
 ├── frontend/             # Next.js 15 App Router web client
 │   ├── src/
-│   │   ├── app/          # Routes: login, dashboard, snacks, favourites, history, admin, activities
+│   │   ├── app/          # Routes: login, register, dashboard, snacks, favourites, history, admin, activities
 │   │   ├── components/   # UI components, layout shell, basket drawer, modals, cards
 │   │   ├── context/      # AuthContext, BasketContext, ThemeContext, ToastContext, QueryProvider
+│   │   ├── hooks/        # useRealtimeEvents (SSE live sync)
 │   │   ├── services/     # Centralized API service modules (snack, activity, auth, api)
 │   │   └── lib/          # Utilities, dynamic status calculations
 │   ├── tests/            # Frontend service and basket state tests (Vitest)
@@ -55,19 +59,19 @@ snack-overflow/
 ├── backend/              # Express.js REST API
 │   ├── src/
 │   │   ├── config/       # Environment and database configuration
-│   │   ├── controllers/  # Request handlers and response envelopes
-│   │   ├── middleware/   # Authentication, RBAC, error handling, CSRF
-│   │   ├── routes/       # API routes
-│   │   ├── services/     # Business logic and atomic concurrency transactions
+│   │   ├── controllers/  # Request handlers and response envelopes (auth, snack, activity, events)
+│   │   ├── middleware/   # Authentication, RBAC, error handling, CSRF, rate-limit
+│   │   ├── routes/       # API routes (auth, snack, activity, events)
+│   │   ├── services/     # Business logic, idempotency, SSE broker, atomic transactions
 │   │   ├── utils/        # Status calculations, error classes
 │   │   └── validators/   # Zod request validators
-│   ├── prisma/           # Schema, versioned migrations, idempotent seed
-│   ├── tests/            # Supertest API & PostgreSQL concurrency tests
+│   ├── prisma/           # Schema, versioned migrations (including idempotency_keys), idempotent seed
+│   ├── tests/            # Supertest API, idempotency, SSE & PostgreSQL concurrency tests
 │   └── package.json
 ├── docs/                 # Engineering documentation
-│   ├── ARCHITECTURE.md   # System architecture and concurrency design
-│   ├── DATABASE.md       # ERD, constraints, schema specification
-│   ├── API_SPEC.md       # Full REST API documentation
+│   ├── ARCHITECTURE.md   # System architecture, concurrency, idempotency & SSE design
+│   ├── DATABASE.md       # ERD, constraints, schema specification (6 tables)
+│   ├── API_SPEC.md       # Full REST API & SSE event stream documentation
 │   └── DESIGN_SYSTEM.md  # Design tokens, typography, component guidelines
 ├── .env.example          # Safe template for environment configuration
 └── README.md
@@ -126,13 +130,13 @@ snack-overflow/
 All integration and concurrency tests execute against a dedicated, isolated PostgreSQL test database (`snack_overflow_test`) with zero mock data for database queries.
 
 ```bash
-# Run all tests across the monorepo (74 tests: 59 backend + 15 frontend)
+# Run all tests across the monorepo (99 tests: 83 backend + 16 frontend)
 npm run test
 
-# Run backend integration & concurrency tests only (59 tests)
+# Run backend integration, idempotency, SSE & concurrency tests only (83 tests across 10 files)
 npm run test:backend
 
-# Run frontend service & basket logic tests only (15 tests)
+# Run frontend service, basket logic & hook tests only (16 tests across 2 files)
 npm run test:frontend
 
 # Run strict TypeScript typecheck across monorepo
@@ -145,7 +149,7 @@ npm run lint
 npm --prefix frontend run build
 ```
 
-### Concurrency Test Scenarios Verified
+### Key Concurrency & Idempotency Scenarios Verified
 
 1. **Scenario 1 (10 Simultaneous Requests against Stock 3):**
    - 10 parallel HTTP POST `/api/snacks/:id/consume` requests with amount = 1.
@@ -153,7 +157,17 @@ npm --prefix frontend run build
    - Final stock quantity: exactly 0.
    - Activity audit records created: exactly 3.
 
-2. **Scenario 2 (2 Concurrent Multi-Packet Requests against Stock 3):**
+2. **Scenario 2 (Idempotency Retries under Network Replay):**
+   - Client sends `POST /api/snacks/:id/consume` with `Idempotency-Key: test-uuid`. First request succeeds with status 200.
+   - Client repeats exact request with same `Idempotency-Key`.
+   - Result: Returns cached 200 response with `Idempotency-Replayed: true` header. No stock double-decrement, no duplicate activity log.
+   - Reusing same key with altered payload returns `409 IDEMPOTENCY_KEY_PAYLOAD_MISMATCH`.
+
+3. **Scenario 3 (Real-Time SSE Sync across Concurrent Sessions):**
+   - Member B subscribes to `/api/events`. Member A consumes a snack with an idempotency key.
+   - Result: Member B receives a live `SNACK_CONSUMED` event in <50ms without polling. TanStack Query automatically invalidates cache. Repeated idempotent consumption emits zero extra events.
+
+4. **Scenario 4 (2 Concurrent Multi-Packet Requests against Stock 3):**
    - 2 parallel HTTP POST `/api/snacks/:id/consume` requests with amount = 2.
    - Result: Exactly 1 request succeeds with `200 OK`, exactly 1 request receives `409 Conflict`.
    - Final stock quantity: exactly 1.
